@@ -1,29 +1,22 @@
 import socket
 import select
+from util import get_available_ch
 
 server_socks = []
 
-CHANNELS = []
+
 CONN_TIMEOUT = 10
 
-# find available port
-for port in range(0, 11):
-  try:
-    s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-    s.bind(("0c:7a:15:ac:75:78", port))
-    if len(CHANNELS) == 2:
-        break
-    s.close()
-    CHANNELS.append(port)
-  except OSError:
-    pass
+server_bt_mac = '0c:7a:15:ac:75:78'
+
+CHANNELS = get_available_ch(server_bt_mac, 2)
 
 print('avalable port', CHANNELS) 
 
 # create two server sockets to listen to channel 1 and 2 respectively
 for ch in CHANNELS:
   server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-  server_sock.bind(("0c:7a:15:ac:75:78", ch))
+  server_sock.bind((server_bt_mac, ch))
   server_sock.listen(ch)
   server_socks.append(server_sock)
 

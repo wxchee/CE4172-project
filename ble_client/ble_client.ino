@@ -1,21 +1,26 @@
 #include <ArduinoBLE.h>
+#include <Arduino_LSM9DS1.h>
 
+const char service_uuid[128] = "f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5";
+const char characteristic_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
+const char * device_name = "Nano33BLE (Left)";
+// const char * device_name = "Nano33BLESense (Right)";
 // Set the service and characteristic:
-BLEService customService("180A");
+BLEService gestureService(service_uuid);
 
 // BLE Characteristics
 // Syntax: BLE<DATATYPE>Characteristic <NAME>(<UUID>, <PROPERTIES>, <DATA LENGTH>)
 // eg. BLEByteCharacteristic switchCharacteristic("2A57", BLERead | BLEWrite);
-BLEStringCharacteristic ble_gesture("2A56", BLERead | BLENotify, 20);
+BLEStringCharacteristic gesturechar(characteristic_uuid, BLERead | BLENotify, 20);
 
-int r,g,b;
 String gesture;
-char * device_name = "Nano33BLE (Left)";
-void readValues();
 
+void readValues();
 void setup() {
 
   Serial.begin(9600);
+  
+  pinMode(LED_BUILTIN, OUTPUT); // initialize the built-in LED pin to indicate when a central is connected
 
   if (!BLE.begin()) {
     Serial.println("BLE failed to initialise");
@@ -23,20 +28,22 @@ void setup() {
     while(1);
   }
 
+  if (!IMU.begin()) {
+    Serial.println("Failed to initialize IMU!");
+    while (1);
+  }
+
   // Set advertised name and service:
   BLE.setLocalName(device_name);
-  BLE.setAdvertisedService(customService);
-  
-  customService.addCharacteristic(ble_gesture);
-
+  BLE.setAdvertisedService(gestureService);
+  gestureService.addCharacteristic(gesturechar);
   // Add service
-  BLE.addService(customService);
+  BLE.addService(gestureService);
 
   // start advertising 
   BLE.advertise();
+
   Serial.print(device_name);
-  Serial.print("(");
-  Serial.print(")");
   Serial.println(" is now active, waiting for connections...");
 }
 
@@ -47,13 +54,16 @@ void loop() {
   if (central) {
     Serial.print("Connected to central: "); Serial.println(central.address());
 
+    // turn on the LED to indicate the connection:
+    digitalWrite(LED_BUILTIN, HIGH);
+
     while (central.connected()) {
       delay(200);
 
       // read sensor value
       readValues();
 
-      ble_gesture.writeValue(gesture);
+      gesturechar.writeValue(gesture);
 
       Serial.println("Reading sensors");
       Serial.println(gesture);
@@ -61,6 +71,8 @@ void loop() {
       // delay(500);
     }
   }
+
+  digitalWrite(LED_BUILTIN, LOW); // when the central disconnects, turn off the LED:
 
   Serial.print("Disconnected from central: ");
   Serial.println(central.address());
