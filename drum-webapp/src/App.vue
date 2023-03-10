@@ -1,10 +1,9 @@
 <template>
   <div class="drum-web-app">
-    <div class="drum-view">
-      drum view
-      <div class="log_left">{{ logLeftString }}</div>
-      <div class="log_right"></div>
-    </div>
+    <transition>
+      <LoadingVisual v-if="!audioReady"></LoadingVisual>
+    </transition>
+    <DrumSet :highlights="highlights"></DrumSet>
     <div class="options">
       <div class="connect-button" @click="onConnect">Connect</div>
     </div>
@@ -12,37 +11,60 @@
 </template>
 
 <script>
-import {ref} from 'vue'
+import {reactive, watch} from 'vue'
+import { connectBTDevice, setupKeyboardInput } from './js/utils'
+import {audioReady, play} from './js/audio'
+import DrumSet from '@/components/DrumSet.vue'
+import LoadingVisual from '@/components/LoadingVisual.vue'
 
-const SERVICE_UUID = "f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5"
-const characteristic_UUID = "2f925c9d-0a5b-4217-8e63-2d527c9211c1"
+
 export default {
   name: 'drum-web-app',
+  components: {DrumSet, LoadingVisual},
   setup () {
-    const logLeftString = ref("")
-    const decoder = new TextDecoder('utf-8')
-    const onCharChange = e => {
-      const value = e.target.value
-      console.log('val: ', decoder.decode(value))
-    }
-
+    console.log(navigator.bluetooth)
+    const highlights = reactive({0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0})
+    const hCountDown = []
     const onConnect = () => {
-      navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }]})
-      .then(device => {
-        console.log(device.name)
-        return device.gatt.connect()
+      connectBTDevice(newVal => {
+        console.log('val: ', newVal)
       })
-      .then(server => server.getPrimaryService(SERVICE_UUID))
-      .then(service => service.getCharacteristic(characteristic_UUID))
-      .then(characteristic => characteristic.startNotifications())
-      .then(characteristic => {
-        characteristic.addEventListener('characteristicvaluechanged', onCharChange)
-      })
-      .catch(err => console.error(err))
     }
 
+    const onNewCode = drumCode => {
+      play(drumCode)
+      setHightlight(drumCode)
+    }
 
-    return {onConnect, logLeftString}
+    const setHightlight = i => {
+      highlights[i] = 1
+
+      if (hCountDown[i]) {
+        cancelAnimationFrame(hCountDown[i])
+        hCountDown[i] = null
+      }
+
+      hCountDown[i] = () => {
+        highlights[i] -= 0.1
+
+        if (highlights[i] <= 0) {
+          cancelAnimationFrame(hCountDown[i])
+          hCountDown[i] = null
+          highlights[i] = 0
+        } else requestAnimationFrame(hCountDown[i])
+      }
+
+      requestAnimationFrame(hCountDown[i])
+    }
+
+    watch(
+      () => audioReady.value,
+      newVal => {
+        if (newVal) setupKeyboardInput(onNewCode)
+      })
+    
+
+    return {highlights, onConnect, audioReady}
   }
 }
 </script>
@@ -55,6 +77,16 @@ body {
   margin: 0;
 }
 
+.v-enter-active,
+.v-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+}
+
 .drum-web-app {
   max-width: 1200px;
   height: 100vh;
@@ -62,9 +94,8 @@ body {
   display: flex;
   flex-direction: column;
 
-  .drum-view {
+  .drum-set {
     height: calc(100% - 150px);
-    background-color: green;
   }
 
   .options {
