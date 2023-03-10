@@ -68,7 +68,6 @@ export default {
 <style lang="scss">
 .drum-set {
   position: relative;
-  background-color: #111111;
   
   .drum-set-svg {
     position: absolute;

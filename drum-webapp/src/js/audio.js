@@ -1,7 +1,7 @@
 import {ref} from 'vue'
 const audioReady = ref(false)
-
-const audioCtx = new AudioContext()
+const isLoading = ref(false)
+let audioCtx = null
 
 const fetchAudio = path => {
   return fetch(path)
@@ -11,21 +11,29 @@ const fetchAudio = path => {
 
 let buffers = []
 
-const loadAudioDatas = () => {
+const loadAudioDatas = cb => {
+  isLoading.value = true
+  audioCtx = new AudioContext()
+
   Promise.all([
     fetchAudio('audios/acoustic/0-crash-1.wav'),
-    fetchAudio('audios/acoustic/1-hihat-open.wav'),
-    fetchAudio('audios/acoustic/2-tom-1.wav'),
+    fetchAudio('audios/acoustic/1-tom-1.wav'),
+    fetchAudio('audios/acoustic/2-hihat.wav'),
     fetchAudio('audios/acoustic/3-snare-1.wav'),
-    fetchAudio('audios/acoustic/4-crash-2.wav'),
-    fetchAudio('audios/acoustic/5-tom-2.wav'),
-    fetchAudio('audios/acoustic/6-snare-2.wav'),
-    fetchAudio('audios/acoustic/7-kick-1.wav')
+    fetchAudio('audios/acoustic/4-tom-2.wav'),
+    fetchAudio('audios/acoustic/5-crash-2.wav'),
+    fetchAudio('audios/acoustic/6-kick-1.wav'),
+    fetchAudio('audios/acoustic/7-snare-2.wav')
   ]).then(bfs => {
     buffers = bfs
-
-    audioReady.value = true
-    console.log('audio data loaded')
+    
+    setTimeout(() => {
+      audioReady.value = true
+      isLoading.value = false
+      cb()
+      console.log('audio data loaded')
+    }, 1000);
+    
   })
 }
 
@@ -36,7 +44,5 @@ const play = i => {
   track.start(0)
 }
 
-loadAudioDatas()
-
-export {audioReady, play}
+export {audioReady, loadAudioDatas, play, isLoading}
 

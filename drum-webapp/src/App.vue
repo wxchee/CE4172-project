@@ -1,30 +1,38 @@
 <template>
   <div class="drum-web-app">
     <transition>
-      <LoadingVisual v-if="!audioReady"></LoadingVisual>
+      <div v-if="!audioReady" class="virtual-drum-entry">
+        <div v-if="!isLoading" class="load-button" @click="onLoad">Load Virtual Drum</div>
+        <div v-if="isLoading" class="load-visual">Loading...</div>
+      </div>
     </transition>
+    
     <DrumSet :highlights="highlights"></DrumSet>
-    <div class="options">
-      <div class="connect-button" @click="onConnect">Connect</div>
+    <div class="option">
+      <div class="option-content">
+        <div class="connect-button" @click="onConnect">Connect</div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import {reactive, watch} from 'vue'
+import {reactive} from 'vue'
 import { connectBTDevice, setupKeyboardInput } from './js/utils'
-import {audioReady, play} from './js/audio'
+import {audioReady, isLoading, loadAudioDatas, play} from './js/audio'
 import DrumSet from '@/components/DrumSet.vue'
-import LoadingVisual from '@/components/LoadingVisual.vue'
 
 
 export default {
   name: 'drum-web-app',
-  components: {DrumSet, LoadingVisual},
+  components: {DrumSet},
   setup () {
     console.log(navigator.bluetooth)
     const highlights = reactive({0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0})
     const hCountDown = []
+
+    const onLoad = () => loadAudioDatas(() => setupKeyboardInput(onNewCode))
+
     const onConnect = () => {
       connectBTDevice(newVal => {
         console.log('val: ', newVal)
@@ -57,24 +65,19 @@ export default {
       requestAnimationFrame(hCountDown[i])
     }
 
-    watch(
-      () => audioReady.value,
-      newVal => {
-        if (newVal) setupKeyboardInput(onNewCode)
-      })
-    
-
-    return {highlights, onConnect, audioReady}
+    return {highlights, onLoad, onConnect, audioReady, isLoading}
   }
 }
 </script>
 
 <style lang="scss">
+$tt: 0.2s;
 body {
   font-family: sans-serif;
   font-size: 20px;
   padding: 0;
   margin: 0;
+  background-color: #111111;
 }
 
 .v-enter-active,
@@ -94,25 +97,77 @@ body {
   display: flex;
   flex-direction: column;
 
-  .drum-set {
-    height: calc(100% - 150px);
-  }
+  .virtual-drum-entry {
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(black, 0.95);
 
-  .options {
-    background-color: grey;
-    height: 150px;
-    .connect-button {
-      display: inline-block;
-      padding: 6px 20px;
-      border-radius: 20px;
-      color: #FFFFFF;
-      background-color: rgba(#9e9e9e, 0.75);
+    .load-button {
+      position: absolute;
+      color: #333333;
+      font-size: 25px;
+      font-weight: 700;
+      line-height: 1;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      border-radius: 30px;
+      background-color: #FFFFFF;
       cursor: pointer;
+      transition: transform $tt, background-color $tt, color $tt, padding $tt;
 
       &:hover {
-        background-color: #9e9e9e;
+        transform: translate(-50%, -50%) scale(1.05);
+        background-color: #555555;
+        color: #FFFFFF;
+        padding: 15px 25px;
       }
     }
+    
+    .load-visual {
+      position: absolute;
+      color: white;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+  .drum-set {
+    height: calc(100% - 150px);
+    overflow: hidden;
+  }
+
+  .option {
+    // background-color: grey;
+    height: 150px;
+
+    .option-content {
+      margin: 0 auto;
+      max-width: 600px;
+      padding: 20px;
+      box-sizing: border-box;
+      background-color: #666666;
+
+      .connect-button {
+        display: inline-block;
+        padding: 6px 20px;
+        border-radius: 20px;
+        color: #FFFFFF;
+        background-color: rgba(#9e9e9e, 0.75);
+        cursor: pointer;
+
+        &:hover {
+          background-color: #9e9e9e;
+        }
+      }
+    }
+
+    
   }
 }
 </style>
