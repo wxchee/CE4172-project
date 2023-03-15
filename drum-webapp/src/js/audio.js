@@ -1,70 +1,71 @@
 import {ref} from 'vue'
+import { setupKeyboardInput } from './utils'
 const audioReady = ref(false)
-const isLoading = ref(false)
+const isAudioLoading = ref(false)
 let audioCtx = null
 
-const drumTypes = {
-  'General': [
-    'acoustic/0-crash-1.wav',
-    'acoustic/1-tom-1.wav',
-    'acoustic/2-hihat.wav',
-    'acoustic/3-snare-1.wav',
-    'acoustic/4-tom-2.wav',
-    'acoustic/5-crash-2.wav',
-    'acoustic/6-kick-1.wav',
-    'acoustic/7-snare-2.wav'
+const drumAudioFiles = {
+  'acoustic': [
+    '0-crash-1.wav',
+    '1-tom-1.wav',
+    '2-hihat.wav',
+    '3-snare-1.wav',
+    '4-tom-2.wav',
+    '5-crash-2.wav',
+    '6-kick-1.wav',
+    '7-snare-2.wav'
   ],
-  'Analog': [
-    'analog/0-crash-1.wav',
-    'analog/1-clap.wav',
-    'analog/2-hihat-1.wav',
-    'analog/3-snare-1.wav',
-    'analog/4-conga.wav',
-    'analog/5-crash-2.wav',
-    'analog/6-kick.wav',
-    'analog/7-snare-2.wav'
+  'analog': [
+    '0-crash-1.wav',
+    '1-clap.wav',
+    '2-hihat-1.wav',
+    '3-snare-1.wav',
+    '4-conga.wav',
+    '5-crash-2.wav',
+    '6-kick.wav',
+    '7-snare-2.wav'
   ],
-  'Latin': [
-    'latin/0-Shaker.wav',
-    'latin/1-CoffeeCup.wav',
-    'latin/2-Guiro.wav',
-    'latin/3-Conga.wav',
-    'latin/4-Bongo.wav',
-    'latin/5-Conga-4.wav',
-    'latin/6-Timbale-2.wav',
-    'latin/7-WoodBlock.wav'
+  'latin': [
+    '0-Guiro.wav',
+    '1-Conga-4.wav',
+    '2-Shaker.wav',
+    '3-Conga.wav',
+    '4-Bongo.wav',
+    '5-CoffeeCup.wav',
+    '6-Timbale-2.wav',
+    '7-WoodBlock.wav'
   ]
 }
 
 const fetchAudio = path => {
-  return fetch(`audios/${path}`)
+  return fetch(path)
   .then(res => res.arrayBuffer())
   .then(bf => audioCtx.decodeAudioData(bf))
 }
 
 const buffers = {
-  'General': null,
-  'Analog': null,
-  'Latin': null
+  'acoustic': null,
+  'analog': null,
+  'latin': null
 }
 
-const loadAudioDatas = cb => {
-  isLoading.value = true
+const loadAudioDatas = () => {
+  isAudioLoading.value = true
   audioCtx = new AudioContext()
 
   Promise.all([
-    ...drumTypes['General'].map(path => fetchAudio(path)),
-    ...drumTypes['Analog'].map(path => fetchAudio(path)),
-    ...drumTypes['Latin'].map(path => fetchAudio(path)),
+    ...drumAudioFiles['acoustic'].map(path => fetchAudio(`audios/acoustic/${path}`)),
+    ...drumAudioFiles['analog'].map(path => fetchAudio(`audios/analog/${path}`)),
+    ...drumAudioFiles['latin'].map(path => fetchAudio(`audios/latin/${path}`)),
   ]).then(bfs => {
-    buffers['General'] = bfs.slice(0, 8)
-    buffers['Analog'] = bfs.slice(8, 16)
-    buffers['Latin'] = bfs.slice(16, 24)
+    buffers['acoustic'] = bfs.slice(0, 8)
+    buffers['analog'] = bfs.slice(8, 16)
+    buffers['latin'] = bfs.slice(16, 24)
     
+    setupKeyboardInput()
     setTimeout(() => {
       audioReady.value = true
-      isLoading.value = false
-      cb()
+      isAudioLoading.value = false
       console.log('audio data loaded')
     }, 1000);
     
@@ -78,5 +79,5 @@ const play = (type, i) => {
   track.start(0)
 }
 
-export {audioReady, loadAudioDatas, play, isLoading}
+export {audioReady, loadAudioDatas, play, isAudioLoading}
 

@@ -17,7 +17,6 @@ export default {
 
     const onSelect = newOpt => emit('update:modelValue', newOpt)
     
-
     return {optionClass, onSelect}
   }
 }
@@ -29,15 +28,15 @@ export default {
   flex-direction: column;
   width: 200px;
   padding: 10px 10px 0;
-  background-color: rgba(white, 0.3);
-  border-radius: 4px;
+  background-color: rgba(white, 0.1);
+  border-radius: 6px;
   box-sizing: border-box;
 
 
   .radio-button__option {
     display: inline-block;
     padding: 8px 15px;
-    background-color: rgba(black, 0.3);
+    background-color: rgba(black, 0.1);
     border-radius: 20px;
     border: 1px solid #ccc;
     cursor: pointer;
