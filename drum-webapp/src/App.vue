@@ -6,35 +6,50 @@
         <div v-if="isAudioLoading" class="loader__visual">Loading...</div>
       </div>
     </transition>
-    <DrumVisual></DrumVisual>
-    <div class="drum-type">
-      <RadioButton v-model="drumType" :options="DRUM_TYPES"></RadioButton>
+    <div class="navbar">
+      <div v-for="(opt, i) in VIEWS" :key="i"
+        :class="navbarOptionClass(opt)" 
+        @click="() => onNavClick(opt, i)">{{ opt }}</div>
     </div>
-    
-    <div class="option">
-      <div class="option-content">
-        <DevicePanel></DevicePanel>
-        <DataPanel></DataPanel>
-      </div>
+    <div class="view-container">
+      <DemoView v-if="curView == VIEWS[0]"></DemoView>
+      <DataCollectView v-else></DataCollectView>
     </div>
+    <DevicePanel></DevicePanel>
   </div>
 </template>
 
 <script>
-import {drumType, DRUM_TYPES} from '@/js/drum'
+import { ref } from 'vue'
 import {audioReady, isAudioLoading, loadAudioDatas} from '@/js/audio'
-import RadioButton from '@/components/RadioButton.vue'
-import DrumVisual from '@/components/DrumVisual.vue'
-import DevicePanel from '@/components/DevicePanel.vue'
-import DataPanel from '@/components/DataPanel.vue'
+import { updateServerMode } from '@/js/device'
+import DemoView from './components/DemoView.vue'
+import DataCollectView from './components/DataCollectView.vue'
+import DevicePanel from './components/DevicePanel.vue'
+
+
+const VIEWS = ['Demo', 'Data Collection']
 
 export default {
   name: 'drum-web-app',
-  components: {DrumVisual, RadioButton, DevicePanel, DataPanel},
+  components: { DemoView, DataCollectView, DevicePanel },
   setup () {
     console.log(navigator.bluetooth)
+    const curView = ref(VIEWS[0])
 
-    return {drumType, DRUM_TYPES, loadAudioDatas, audioReady, isAudioLoading}
+    const navbarOptionClass = (opt) => {
+      return {
+        'navbar__option': true,
+        'current': opt === curView.value
+      }
+    }
+
+    const onNavClick = (newOpt, modeIndex) => {
+      curView.value = newOpt
+      updateServerMode(modeIndex.toString())
+    }
+
+    return {curView, VIEWS, navbarOptionClass, onNavClick, loadAudioDatas, audioReady, isAudioLoading}
   }
 }
 </script>
@@ -62,12 +77,50 @@ body {
 }
 
 .drum-web-app {
+  position: relative;
   max-width: 1200px;
   height: 100vh;
   margin: 0 auto;
+  user-select: none;
+
   display: flex;
   flex-direction: column;
-  user-select: none;
+
+  .navbar {
+    display: flex;
+    width: 100%;
+    color: #FFFFFF;
+    justify-content: center;
+    gap: 20px;
+    padding: 10px;
+    box-sizing: border-box;
+
+
+    & > * {
+      opacity: 0.3;
+      cursor: pointer;
+      transition: opacity 0.2s;
+
+      &.current {
+        opacity: 1;
+        cursor: none;
+        pointer-events: none;
+      }
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+  }
+
+  .view-container {
+    height: 100%;
+
+    & > * {
+      width: 100%;
+      height: 100%;
+    }
+  }
 
   .loader {
     position: fixed;
@@ -111,27 +164,6 @@ body {
     }
   }
 
-  .drum-visual {
-    height: calc(100% - 200px);
-    overflow: hidden;
-  }
   
-  .radio-button {
-    position: fixed;
-    z-index: 0;
-    right: 20px;
-    top: 20px;
-    text-transform: capitalize;
-  }
-
-  .option {
-    height: 200px;
-
-    .option-content {
-      margin: 0 auto;
-      max-width: 600px;
-      background-color: #666666;
-    }
-  }
 }
 </style>

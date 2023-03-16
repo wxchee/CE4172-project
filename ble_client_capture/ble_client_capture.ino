@@ -11,10 +11,11 @@ int sampleRead = 0;
 float aX, aY, aZ, gX, gY, gZ;
 float coolDown = 0;
 
+volatile int mode = 0; // 0: demo, 1: data collection
 
 const char service_uuid[128] = "f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5";
 const char gesture_char_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
-// const char msg_char_uuid[128] = "f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e";
+// const char img_char_uuid[128] = "f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e";
 
 const char * device_name = "Drum_L";
 // const char * device_name = "Drum_R";
@@ -25,10 +26,9 @@ BLEService service(service_uuid);
 
 // BLE Characteristics
 // Syntax: BLE<DATATYPE>Characteristic <NAME>(<UUID>, <PROPERTIES>, <DATA LENGTH>)
-// eg. BLEByteCharacteristic switchCharacteristic("2A57", BLERead | BLEWrite);
-BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 20);
-// BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLENotify, 20);
-// BLEStringCharacteristic msgChar(msg_char_uuid, BLEWrite | BLENotify, 1);
+BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 47);
+// BLEStringCharacteristic imuChar(img_char_uuid, BLERead | BLEWrite | BLENotify, 20);
+
 
 void readValues();
 
@@ -40,7 +40,6 @@ String gesture;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println(BOARD_NAME);
 
   if (!BLE.begin()) {
     Serial.println("BLE failed to initialise");
@@ -58,55 +57,44 @@ void setup() {
   BLE.setLocalName(device_name);
   BLE.setAdvertisedService(service);
   service.addCharacteristic(gestureChar);
-  // service.addCharacteristic(msgChar);
+  // service.addCharacteristic(imuChar);
 
   // Add service
   BLE.addService(service);
-  
-  // msgChar.setEventHandler(BLEWritten, onReceiveMsg);
+  // imuChar.setEventHandler(BLEWritten, onReceiveMsg);
   gestureChar.setEventHandler(BLEWritten, onReceiveMsg);
 
   // start advertising 
   BLE.advertise();
-
+  Serial.print(device_name);
   Serial.println(" is now active, waiting for connections...");
 }
 
-float maxVal = 0;
-// const numSampleLinear = numSample * 6;
 float samples[numSample * 6];
 bool ledOn = false;
-void loop() {
-  // Serial.println(String(1000000 / (micros() - prevMS)) + "Hz");
-  // prevMS = micros();
+float bf[6];
 
+void loop() {
   BLEDevice central = BLE.central();
 
   if (central) {
-    Serial.print("Connected to central: "); Serial.println(central.address());
-
-    prevMS = millis();
-    while (!central.connected()) {
-      if (ledOn) {
-        digitalWrite(LED_BUILTIN, LOW); // when the central disconnects, turn off the LED:
-        ledOn = 0;
-      }
-      Serial.println("Disconnected from central: ");
-      Serial.println(central.address());
-    }
-
-    // turn on the LED to indicate the connection:
-    if (!ledOn) {
-      digitalWrite(LED_BUILTIN, HIGH);
-      ledOn = 1;
-    }    
-    
     while (central.connected()) {
-      // if (!isSampling) {
-      //   prevMS = millis();
-      //   continue;
-      // };
+      if (!ledOn) {  // turn on the LED to indicate the connection:
+        digitalWrite(LED_BUILTIN, HIGH);
+        ledOn = 1;
+        Serial.print("Connected to central: "); Serial.println(central.address());
+      } 
+      // data collection mode
+      if (mode) { // data collection
+          if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
+            IMU.readAcceleration(bf[0], bf[1], bf[2]);
+            IMU.readGyroscope(bf[3], bf[4], bf[5]);
+            gestureChar.writeValue(String(bf[0])+","+String(bf[1])+","+String(bf[2])+","+String(bf[3])+","+String(bf[4])+","+String(bf[5]));
+        }
+        continue;
+      }
 
+      // demo mode
       if (sampleRead < numSample) {
         if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
           IMU.readAcceleration(samples[sampleRead * 6], samples[sampleRead * 6 + 1], samples[sampleRead * 6 + 2]);
@@ -116,7 +104,6 @@ void loop() {
       }
 
       if (millis() - prevMS >= interval) {
-        Serial.println("manual sample: " + String(sampleRead));
         // data padding
           for (int i = sampleRead; i < numSample; i++) {
             samples[i * 6] = 0;
@@ -137,15 +124,22 @@ void loop() {
     }
   }
 
+  if (ledOn) {
+    digitalWrite(LED_BUILTIN, LOW);
+    ledOn = 0;
+    Serial.print("Disconnect: "); Serial.println(central.address());
+  } 
+
 }
 
 // const int tempos[3] = {60, 120, 180};
 // char * tempoIndex;
 // int tempo;
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
-  Serial.println("t");
-  isSampling = true;
-  // prevMS = millis();
+  char indexStr[2] = {' ', '\0'};
+  strncpy(indexStr, (char *) characteristic.value(), 1);
+  mode = atoi(indexStr);
+  Serial.println(String(mode) + ", " + indexStr);
 }
 
 void inferSamples() {

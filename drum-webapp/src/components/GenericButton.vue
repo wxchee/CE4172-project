@@ -28,7 +28,6 @@ export default {
   color: #FFFFFF;
   background-color: rgba(#9e9e9e, 0.5);
   cursor: pointer;
-  margin-right: 10px;
 
   &:hover {
     background-color: #9e9e9e;
