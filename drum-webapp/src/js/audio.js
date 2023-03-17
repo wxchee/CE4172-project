@@ -1,5 +1,6 @@
 import {ref} from 'vue'
-import { setupKeyboardInput } from './utils'
+import { setupDrumKeyboardInput } from '@/js/drum'
+
 const audioReady = ref(false)
 const isAudioLoading = ref(false)
 let audioCtx = null
@@ -62,7 +63,7 @@ const loadAudioDatas = () => {
     buffers['analog'] = bfs.slice(8, 16)
     buffers['latin'] = bfs.slice(16, 24)
     
-    setupKeyboardInput()
+    setupDrumKeyboardInput()
     setTimeout(() => {
       audioReady.value = true
       isAudioLoading.value = false

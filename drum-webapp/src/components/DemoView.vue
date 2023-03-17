@@ -6,7 +6,6 @@
     </div>
     <div class="option">
       <div class="option-content">
-        <!-- <DevicePanel></DevicePanel> -->
       </div>
     </div>
   </div>
@@ -15,7 +14,6 @@
 <script>
 import RadioButton from '@/components/RadioButton.vue'
 import DrumVisual from '@/components/DrumVisual.vue'
-// import DevicePanel from '@/components/DevicePanel.vue'
 
 import {drumType, DRUM_TYPES} from '@/js/drum'
 

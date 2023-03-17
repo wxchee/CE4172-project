@@ -1,10 +1,11 @@
 <template>
   <div class="device-panel">
-    <div class="device-panel-container" :class="{'inView': inView}" @blur="onFocusOut">
+    <div class="device-panel-container" :class="{'inView': inView}">
       <div class="device-panel__content">
         <GenericButton class="device-panel__button connected" v-for="(d, i) in connectedDevices" :key="i"
-          @click="() => onDisconnect(d)">{{d.name}}</GenericButton>
-        <GenericButton class="device-panel__button " v-if="connectedDevices.length < 2" @click="onConnect">&#43; Add device</GenericButton>
+          @click="() => disconnectBTDevice(d)">{{d.name}}</GenericButton>
+        <GenericButton class="device-panel__button " v-if="connectedDevices.length < 2"
+          @click="connectBTDevice">&#43; Add peripheral</GenericButton>
       </div>
       <div class="device-panel__entry" @click="onToggleView">
         <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
@@ -30,13 +31,6 @@ export default {
   setup(props) {
     const inView = ref(false)
     const connectedDevices = computed(() => getConnectedDevices())
-    const onConnect = () => {
-      connectBTDevice(newVal => {
-        console.log(newVal)
-      })
-    }
-
-    const onDisconnect = d => disconnectBTDevice(d)
 
     const checkIfClickWithinView = e => {
       if (e.target.classList.value.indexOf('device-panel') === -1) {
@@ -50,10 +44,8 @@ export default {
       if (inView.value) window.addEventListener('click', checkIfClickWithinView)
       else window.removeEventListener('click', checkIfClickWithinView)
     }
-    const onFocusOut = () => {
-      console.log('oout!')
-    }
-    return {onConnect, onDisconnect, onFocusOut, connectedDevices, inView, onToggleView}
+    
+    return {connectBTDevice, disconnectBTDevice, connectedDevices, inView, onToggleView}
   }
 }
 </script>
@@ -61,7 +53,7 @@ export default {
 <style lang="scss">
 .device-panel {
   position: fixed;
-  top: 0;
+  top: 10px;
   left: 0;
 
   .device-panel-container {
@@ -69,17 +61,22 @@ export default {
     z-index: 1;
     top: 0;
     left: 0;
-    transform: translateX(calc(-100% + 40px));
+    transform: translateX(calc(-100% + 42px));
     display: flex;
     align-items: start;
     transition: transform 0.2s;
 
     &.inView {
       transform: translateX(0);
+
+      .device-panel__entry {
+        box-shadow: 3px 1px 2px #000000;
+      }
     }
 
     .device-panel__entry {
-      transform: translateY(10px);
+      left: 0;
+      transform: translateY(15px);
       color: #FFFFFF;
       line-height: 1;
       width: 40px;
@@ -91,6 +88,7 @@ export default {
       box-sizing: border-box;
       cursor: pointer;
       transition: filter 0.2s;
+
       &:hover {
         filter:brightness(0.8);
       }
@@ -101,7 +99,7 @@ export default {
       }
       
       svg {
-        width: 22px;
+        width: 20px;
       }
 
       span {
@@ -110,9 +108,10 @@ export default {
     }
 
     .device-panel__content {
-      padding: 20px 15px;
+      padding: 18px 10px;
       background-color:#002b53;
       border-right: 3px solid #0082FC;
+
       & > * {
         position: relative;
         text-align: center;

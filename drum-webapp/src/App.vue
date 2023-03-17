@@ -7,12 +7,12 @@
       </div>
     </transition>
     <div class="navbar">
-      <div v-for="(opt, i) in VIEWS" :key="i"
-        :class="navbarOptionClass(opt)" 
-        @click="() => onNavClick(opt, i)">{{ opt }}</div>
+      <div v-for="(mode, i) in MODES" :key="i"
+        :class="navbarOptionClass(mode)" 
+        @click="() => setMode(mode)">{{ mode.label }}</div>
     </div>
     <div class="view-container">
-      <DemoView v-if="curView == VIEWS[0]"></DemoView>
+      <DemoView v-if="mode.index === MODES[0].index"></DemoView>
       <DataCollectView v-else></DataCollectView>
     </div>
     <DevicePanel></DevicePanel>
@@ -20,36 +20,25 @@
 </template>
 
 <script>
-import { ref } from 'vue'
 import {audioReady, isAudioLoading, loadAudioDatas} from '@/js/audio'
-import { updateServerMode } from '@/js/device'
 import DemoView from './components/DemoView.vue'
 import DataCollectView from './components/DataCollectView.vue'
 import DevicePanel from './components/DevicePanel.vue'
-
-
-const VIEWS = ['Demo', 'Data Collection']
+import {MODES, mode, setMode} from '@/js/mode'
 
 export default {
   name: 'drum-web-app',
   components: { DemoView, DataCollectView, DevicePanel },
   setup () {
     console.log(navigator.bluetooth)
-    const curView = ref(VIEWS[0])
-
-    const navbarOptionClass = (opt) => {
+    const navbarOptionClass = nMode => {
       return {
         'navbar__option': true,
-        'current': opt === curView.value
+        'current': nMode.index === mode.index
       }
     }
 
-    const onNavClick = (newOpt, modeIndex) => {
-      curView.value = newOpt
-      updateServerMode(modeIndex.toString())
-    }
-
-    return {curView, VIEWS, navbarOptionClass, onNavClick, loadAudioDatas, audioReady, isAudioLoading}
+    return {mode, MODES, setMode, navbarOptionClass, loadAudioDatas, audioReady, isAudioLoading}
   }
 }
 </script>
@@ -91,7 +80,7 @@ body {
     width: 100%;
     color: #FFFFFF;
     justify-content: center;
-    gap: 20px;
+    gap: 30px;
     padding: 10px;
     box-sizing: border-box;
 
@@ -115,10 +104,12 @@ body {
 
   .view-container {
     height: 100%;
+    overflow-y: hidden;
 
     & > * {
       width: 100%;
       height: 100%;
+      overflow-y: hidden;
     }
   }
 

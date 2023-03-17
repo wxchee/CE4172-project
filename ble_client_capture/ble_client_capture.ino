@@ -46,7 +46,7 @@ void setup() {
     delay(500);
     while(1);
   }
-
+  
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU!");
     while (1);
@@ -68,6 +68,13 @@ void setup() {
   BLE.advertise();
   Serial.print(device_name);
   Serial.println(" is now active, waiting for connections...");
+
+  pinMode(LEDR, OUTPUT);
+  pinMode(LEDG, OUTPUT);
+  // pinMode(LEDB, OUTPUT);
+  digitalWrite(LEDR, LOW);
+  digitalWrite(LEDG, HIGH);
+  // digitalWrite(LEDB, HIGH);
 }
 
 float samples[numSample * 6];
@@ -79,16 +86,25 @@ void loop() {
 
   if (central) {
     while (central.connected()) {
-      if (!ledOn) {  // turn on the LED to indicate the connection:
-        digitalWrite(LED_BUILTIN, HIGH);
+      if (ledOn == 0) {  // turn on the LED to indicate the connection:
+        // digitalWrite(LED_BUILTIN, HIGH);
+        digitalWrite(LEDR, HIGH);
+        digitalWrite(LEDG, LOW);
         ledOn = 1;
         Serial.print("Connected to central: "); Serial.println(central.address());
       } 
       // data collection mode
-      if (mode) { // data collection
+      if (mode == 1) { // data collection
           if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-            IMU.readAcceleration(bf[0], bf[1], bf[2]);
-            IMU.readGyroscope(bf[3], bf[4], bf[5]);
+            IMU.readAcceleration(aX, aY, aZ);
+            IMU.readGyroscope(gX, gY, gZ);
+            // normalise accelerometer and gyroscope abs value to range: [0, 1]
+            bf[0] = aX / 4;
+            bf[1] = aY / 4;
+            bf[2] = aZ / 4;
+            bf[3] = gX / 2000;
+            bf[4] = gY / 2000;
+            bf[5] = gZ / 2000;
             gestureChar.writeValue(String(bf[0])+","+String(bf[1])+","+String(bf[2])+","+String(bf[3])+","+String(bf[4])+","+String(bf[5]));
         }
         continue;
@@ -97,8 +113,16 @@ void loop() {
       // demo mode
       if (sampleRead < numSample) {
         if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-          IMU.readAcceleration(samples[sampleRead * 6], samples[sampleRead * 6 + 1], samples[sampleRead * 6 + 2]);
-          IMU.readGyroscope(samples[sampleRead * 6 + 3], samples[sampleRead * 6 + 4], samples[sampleRead * 6 + 5]);
+          IMU.readAcceleration(aX, aY, aZ);
+          IMU.readGyroscope(gX, gY, gZ);
+          
+          // normalise accelerometer and gyroscope abs value to range: [0, 1]
+          bf[0] = aX / 4;
+          bf[1] = aY / 4;
+          bf[2] = aZ / 4;
+          bf[3] = gX / 2000;
+          bf[4] = gY / 2000;
+          bf[5] = gZ / 2000;
           sampleRead++;
         }
       }
@@ -124,8 +148,10 @@ void loop() {
     }
   }
 
-  if (ledOn) {
-    digitalWrite(LED_BUILTIN, LOW);
+  if (ledOn == 1) {
+    // digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(LEDR, LOW);
+    digitalWrite(LEDG, HIGH);
     ledOn = 0;
     Serial.print("Disconnect: "); Serial.println(central.address());
   } 
