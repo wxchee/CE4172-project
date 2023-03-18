@@ -1,13 +1,14 @@
 <template>
   <div class="device-panel">
-    <div class="device-panel-container" :class="{'inView': inView}">
+    <div class="device-panel-container" :class="{inView: inView}" @mouseover="() => inView = true" @mouseout="() => inView = false">
       <div class="device-panel__content">
         <GenericButton class="device-panel__button connected" v-for="(d, i) in connectedDevices" :key="i"
           @click="() => disconnectBTDevice(d)">{{d.name}}</GenericButton>
         <GenericButton class="device-panel__button " v-if="connectedDevices.length < 2"
-          @click="connectBTDevice">&#43; Add peripheral</GenericButton>
+          :style="{pointerEvents: connectInProgress ? 'none' : 'all', opacity: connectInProgress ? 0.5 : 1}"
+          @click="clickConnectButton">{{connectInProgress ? 'connecting...' : '&#43; Add peripheral'}}</GenericButton>
       </div>
-      <div class="device-panel__entry" @click="onToggleView">
+      <div class="device-panel__entry">
         <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
           viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve">
         <polyline fill="none" stroke="#D1D3D4" stroke-width="1.5" stroke-miterlimit="10" points="6.35,6.04 13.65,13.34 10.14,16.85 
@@ -30,22 +31,31 @@ export default {
   components: {GenericButton},
   setup(props) {
     const inView = ref(false)
+    const connectInProgress = ref(false)
     const connectedDevices = computed(() => getConnectedDevices())
-
-    const checkIfClickWithinView = e => {
-      if (e.target.classList.value.indexOf('device-panel') === -1) {
-        inView.value = e.target.classList.value.indexOf('device-panel') !== -1
-      }
-    }
     
-    const onToggleView = () => {
-      inView.value = !inView.value
+    // const checkIfClickWithinView = e => {
+    //   if (e.target.classList.value.indexOf('device-panel') === -1) {
+    //     inView.value = e.target.classList.value.indexOf('device-panel') !== -1
+    //   }
+    // }
 
-      if (inView.value) window.addEventListener('click', checkIfClickWithinView)
-      else window.removeEventListener('click', checkIfClickWithinView)
+    const clickConnectButton = () => {
+      connectInProgress.value = true
+      connectBTDevice(success => {
+        connectInProgress.value = false
+        inView.value = false
+      })
     }
+     
+    // const onToggleView = () => {
+    //   inView.value = !inView.value
+
+    //   if (inView.value) window.addEventListener('click', checkIfClickWithinView)
+    //   else window.removeEventListener('click', checkIfClickWithinView)
+    // }
     
-    return {connectBTDevice, disconnectBTDevice, connectedDevices, inView, onToggleView}
+    return {connectInProgress, clickConnectButton, disconnectBTDevice, connectedDevices, inView}
   }
 }
 </script>
@@ -63,7 +73,7 @@ export default {
     left: 0;
     transform: translateX(calc(-100% + 42px));
     display: flex;
-    align-items: start;
+    align-items: flex-start;
     transition: transform 0.2s;
 
     &.inView {
@@ -87,6 +97,7 @@ export default {
       justify-content: center;
       box-sizing: border-box;
       cursor: pointer;
+      pointer-events: none;
       transition: filter 0.2s;
 
       &:hover {
@@ -125,8 +136,8 @@ export default {
 
         &.connected {
           position: relative;
-          border: 3px solid rgb(32, 126, 71);
-          background-color: rgb(70, 199, 124);
+          border: 3px solid #0063c0;
+          background-color: #0082FC;
           box-sizing: border-box;
 
           &:hover {

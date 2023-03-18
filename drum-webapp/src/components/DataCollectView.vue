@@ -12,26 +12,27 @@
       <div class="strength">
           <span>Current strength: {{ strength }}</span>
           <div class="bar">
-            <span :style="{width: `calc(${strength} / 0.8 * 100%)`}"></span>
+            <span :style="getStrengthBarStyle()"></span>
+            <span class="mark" :style="{left: `calc(${threshold / THRESHOLD_RANGE[1] } * 100%)`}"></span>
           </div>
         </div>
     </div>
     <div class="captures">
       <div class="captures__header" :class="{disabled: isCaptureDisabled()}">
-        <h4>Captured: {{ capturedCount }}</h4>
+        <h4>Captured: {{ capturedBuffer.length }}</h4>
         <GenericButton @click="startCapture">{{captureStarted ? 'Pause' : 'Start'}}</GenericButton>
         <GenericButton @click="resetCapture">Clear</GenericButton>
-        <a class="downloadCSV" download="capture.csv" ref="download" :class="{disabled: !capturedBuffer[0] || !capturedBuffer[0].length}" @click="saveCapture">Save as .csv</a>
+        <a class="downloadCSV" download="capture.csv" ref="download" :class="{disabled: !capturedBuffer.length}" @click="saveCapture">Save as .csv</a>
       </div>
       <div class="captures__records">
         <div class="captures__records__wrapper">
-          <div :class="captureItemClass(i)" v-for="(capArray, i) in capturedBuffer" :key="i" @click="() => selectedCapIndex = i">
-            Capture {{ i+1 }}
+          <div :class="captureItemClass(i)" v-for="({t}, i) in capturedBuffer" :key="i" @click="() => selectedCapIndex = i">
+            captured at: {{ t }}
             <span class="delete" @click="() => removeCapturedItem(i)">&#10005;</span>
           </div>
           <div class="new-capture-indicator" :style="getIndicatorStyle()"></div>
         </div>
-        <DataVisual :sensorData="capturedBuffer[selectedCapIndex] || []"></DataVisual>
+        <DataVisual :sensorData="capturedBuffer[selectedCapIndex]"></DataVisual>
       </div>
       
     </div>
@@ -44,7 +45,7 @@ import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
 import { getConnectedDevices } from '@/js/device'
 import {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, capturedCount, captureStarted, numSample, buffer, capturedBuffer,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer,
   selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, isCaptureDisabled
 } from '@/js/capture'
 
@@ -68,17 +69,21 @@ export default {
       return { width: `calc(${ratio} * 100%)` }
     }
 
+    const getStrengthBarStyle = () => {
+      return {
+        width: `calc(${ Math.min(1, strength.value / THRESHOLD_RANGE[1])} * 100%)`,
+        backgroundColor: strength.value > threshold.value ? '#42ff75' : 'red'
+      }
+    }
+
     const download = ref(null)
     const saveCapture = () => {
       pauseCapture()
-      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => bf.join("\r\n")).join("\r\n\n")
+      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => bf.val.join("\r\n")).join("\r\n\n")
 
       const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'})
       
-      download.value.href = URL.createObjectURL(blob)    
-      // console.log(csvContent)
-      // const encodeUri = encodeURI(csvContent)
-      // window.open(encodeUri)
+      download.value.href = URL.createObjectURL(blob)
     }
 
     onBeforeUnmount(() => {
@@ -87,9 +92,9 @@ export default {
 
     return {
       numSample, threshold, SAMPLE_RAMGE, THRESHOLD_RANGE,
-      capturedCount, capturedBuffer, startCapture, resetCapture, captureStarted,
+      capturedBuffer, startCapture, resetCapture, captureStarted,
       selectedCapIndex, removeCapturedItem, getConnectedDevices, isCaptureDisabled,
-      strength, download, captureItemClass, getIndicatorStyle, saveCapture
+      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, saveCapture
     }
   }
   
@@ -109,9 +114,11 @@ export default {
     width: 100%;
     max-width: 500px;
     margin: 0 auto;
+    font-size: 17px;
 
     .settings__item {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       margin-bottom: 20px;
 
@@ -140,6 +147,11 @@ export default {
           left: 0;
           height: 100%;
           background-color: red;
+        }
+
+        .mark {
+          width: 2px;
+          background-color: #333333;
         }
       }
     }
@@ -173,7 +185,11 @@ export default {
         text-decoration: none;
         border-bottom: 2px dotted #d1e1ff;
         cursor: pointer;
-        opacity: 0.8;
+        opacity: 0.9;
+
+        &.disabled {
+          opacity: 0.4;
+        }
 
         &:hover {
           opacity: 1;
@@ -250,7 +266,6 @@ export default {
       .data-visual {
         width: 100%;
         height: 100%;
-        background-color: yellow;
       }
     }
   }

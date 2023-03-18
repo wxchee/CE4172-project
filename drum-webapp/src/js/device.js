@@ -38,9 +38,11 @@ const connectBTDevice = async cb => {
       devices[deviceType].gesChar = gestureChar
       
       updateServerMode(mode.index)
+      if (cb) cb(true)
       console.log(device.name, 'connected.')
     }
   } catch (err) {
+    if (cb) cb(false)
     console.warn('Error occurs during BT device connection.', err)
   }
 }
