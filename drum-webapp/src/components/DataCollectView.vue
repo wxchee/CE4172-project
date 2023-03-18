@@ -20,7 +20,7 @@
     <div class="captures">
       <div class="captures__header">
         <h4>Captured: {{ capturedBuffer.length }}</h4>
-        <GenericButton :class="{disabled: isCaptureDisabled()}" @click="startCapture">{{captureStarted ? 'Pause' : 'Start'}}</GenericButton>
+        <GenericButton :class="{disabled: !hasAvailableDevices()}" @click="startCapture">{{captureStarted ? 'Pause' : 'Start'}}</GenericButton>
         <GenericButton :class="{disabled: !capturedBuffer.length}" @click="resetCapture">Clear</GenericButton>
         <a class="downloadCSV" :class="{disabled: !capturedBuffer.length}" download="capture.csv" ref="download" @click="saveCapture">Save as .csv</a>
       </div>
@@ -32,7 +32,10 @@
           </div>
           <div class="new-capture-indicator" :style="getIndicatorStyle()"></div>
         </div>
-        <DataVisual :sensorData="getSensorData()"></DataVisual>
+        <div class="capture-visual">
+          <h4>View: <span>{{getCurrentView()}}</span></h4>
+          <DataVisual :sensorData="getSensorData()"></DataVisual>
+        </div>
       </div>
       
     </div>
@@ -43,10 +46,10 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
-import { getConnectedDevices } from '@/js/device'
+
 import {
   SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer, captureSnaphot,
-  selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, isCaptureDisabled
+  selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 } from '@/js/capture'
 
 export default {
@@ -60,7 +63,8 @@ export default {
     const captureItemClass = capturedIndex => {
       return {
         'captures__records__item': true,
-        'selected': capturedIndex === selectedCapIndex.value
+        'selected': capturedIndex === selectedCapIndex.value,
+        'disabled': captureStarted.value
       }
     }
 
@@ -81,7 +85,17 @@ export default {
     }
 
     const getSensorData = () => {
-      return selectedCapIndex.value < 0 ? captureSnaphot : capturedBuffer.value[selectedCapIndex.value]
+      if (selectedCapIndex.value >= 0) return capturedBuffer.value[selectedCapIndex.value]
+      else if (hasAvailableDevices()) return captureSnaphot
+
+      return null
+    }
+
+    const getCurrentView = () => {
+      if (selectedCapIndex.value >= 0) return 'captured at ' + capturedBuffer.value[selectedCapIndex.value].t
+      else if (hasAvailableDevices()) return 'live'
+
+      return ''
     }
 
     const download = ref(null)
@@ -102,8 +116,9 @@ export default {
     return {
       numSample, threshold, SAMPLE_RAMGE, THRESHOLD_RANGE,
       capturedBuffer, startCapture, resetCapture, captureStarted,
-      selectedCapIndex, removeCapturedItem, getConnectedDevices, isCaptureDisabled,
-      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer, saveCapture, getSensorData
+      selectedCapIndex, removeCapturedItem, hasAvailableDevices,
+      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer,
+      saveCapture, getSensorData, getCurrentView
     }
   }
   
@@ -129,7 +144,7 @@ export default {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
 
       input {
         width: 50%;
@@ -207,13 +222,14 @@ export default {
       }
     }
     .captures__records {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
       height: 100%;
       overflow-y: hidden;
 
       .captures__records__wrapper {
           height: 100%;
+          min-width: 300px;
+          flex: 1;
           overflow-y: hidden;
           background-color: #ffffff;
           overflow-y: auto;
@@ -233,12 +249,17 @@ export default {
             padding: 10px;
             cursor: pointer;
             box-sizing: border-box;
-          
             &.selected,
             &.selected:hover {
               background-color: #111111;
               color: #FFFFFF;
 
+            }
+
+            &.disabled {
+              // cursor: not-allowed;
+              pointer-events: none;
+              opacity: 0.5;
             }
 
             .delete {
@@ -274,10 +295,34 @@ export default {
           }
       }
 
-      .data-visual {
-        width: 100%;
+      .capture-visual {
+        position: relative;
+        flex: 2;
         height: 100%;
         background-color: #111111;
+
+        h4 {
+          position: absolute;
+          top: 0;
+          left: 0;
+          margin: 0;
+          padding: 10px 20px 0;
+          font-size: 22px;
+          
+          span {
+            font-size: 17px;
+            font-weight: normal;
+          }
+        }
+
+        .data-visual {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0;
+          left: 0;
+        }
+        
       }
     }
   }

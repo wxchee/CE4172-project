@@ -43,7 +43,7 @@ const onReceiveNewDataForDataCollect = async newVal => {
         }
     }
 
-    if (captureSnaphot.val.length >= numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value)
+    if (captureSnaphot.val.length >= numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value + 1)
     captureSnaphot.t = Date.now()
     captureSnaphot.val.push(newVal)
     
@@ -52,6 +52,9 @@ const onReceiveNewDataForDataCollect = async newVal => {
 const startCapture = () => {
   if (!getConnectedDevices().length) return
   captureStarted.value = !captureStarted.value
+  if(captureStarted.value) {
+    selectedCapIndex.value = -1
+  }
 }
 
 const pauseCapture = () => {
@@ -70,18 +73,19 @@ const resetCapture = () => {
 
 const removeCapturedItem = (capturedIndex, e) => {
   capturedBuffer.value.splice(capturedIndex, 1)
-  if (selectedCapIndex.value == capturedIndex) {
-    selectedCapIndex.value = -1
+  if (selectedCapIndex.value == capturedIndex && selectedCapIndex.value === capturedBuffer.value.length) {
+    console.log('match', selectedCapIndex.value, capturedIndex)
+    selectedCapIndex.value =  capturedIndex - 1
   }
 
   if (e) e.stopPropagation()
 }
 
-const isCaptureDisabled = () => {
-  return !getConnectedDevices().length
+const hasAvailableDevices = () => {
+  return getConnectedDevices().length
 }
 
 export {
   SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer, selectedCapIndex, captureSnaphot,
-  onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, isCaptureDisabled
+  onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 }

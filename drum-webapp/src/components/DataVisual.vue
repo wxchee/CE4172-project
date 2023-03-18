@@ -4,11 +4,15 @@
       <path v-for="({color, d}, i) in paths" :key="i" :d="d" fill="none" :stroke="color" stroke-width="1"/>
       
       <line v-bind="middleLineStyle()"/>
-
-      <line class="tick-x" v-for="i in parseInt(numSample)" :key="i" v-bind="tickXAttr(i-1)" />
-      <g class="tick-y" v-for="i in 20" :key="i">
-        <line v-bind="tickYAttr(i-1)" />
-        <text v-bind="tickYTextAttr(i-1)">{{ (-1 + i/20 * 2).toFixed(1) }}</text>
+      <g class="tick-x">
+      <!-- <g class="tick-x" v-for="(tx, i) in tickX" :key="i"> -->
+        <line v-for="(tx, i) in parseInt(numSample)" :key="i" v-bind="tickXAttr(tx-1)" />
+        <text v-for="(tx, i) in tickX" :key="i" v-bind="tickXTextAttr(tx-1)">{{ tx }}</text>
+      </g>
+      
+      <g class="tick-y" v-for="(ty, i) in tickY" :key="i">
+        <line v-bind="tickYAttr(i)" />
+        <text v-bind="tickYTextAttr(i)">{{ ty }}</text>
       </g>
       
     </svg>
@@ -28,8 +32,10 @@ import {computed, onMounted, ref, reactive} from 'vue'
 import { numSample } from '@/js/capture'
 
 const d3 = Object.assign({}, require('d3-scale'), require('d3-shape'))
-const MARGIN = {top: 30, right: 5, bottom: 10, left: 40}
+const MARGIN = {top: 50, right: 15, bottom: 40, left: 40}
 const colorScheme = ['#0352fc', '#3d7bff', '#7da7ff', '#ff5e00', '#ff8842', '#ffaf80']
+
+const range = (start, stop, step, fp=0) => Array.from({length: Math.ceil((stop - start) / step) + 1}, (x, i) => (start + i * step).toFixed(fp))
 
 export default {
   props: {
@@ -40,10 +46,32 @@ export default {
     const root = ref(null)
     const box = reactive({width: 0, height: 0})
 
+    const tickX = computed(() => {
+      const maxTick = 12
+      let rawTickX = range(1, numSample.value, Math.ceil(numSample.value / maxTick))
+      
+      if (numSample.value > maxTick) {
+        if (rawTickX[rawTickX.length - 1] > numSample.value) rawTickX.pop()
+
+        const diffLast = numSample.value - rawTickX[rawTickX.length - 1]
+
+        if (diffLast && diffLast < 2) {
+          rawTickX.splice(rawTickX.length - 1, 1, numSample.value)
+        } else {
+          rawTickX.push(numSample.value)
+        }
+      }
+      
+      return rawTickX
+    })
+
+    const tickY = range(-1, 1, 0.1, 1)
+
+    
     const paths = computed(() => {
       if (!props.sensorData) return []
       const x = d3.scaleLinear().domain([0, numSample.value - 1]).range([MARGIN.left, box.width - MARGIN.right])  
-      const y = d3.scaleLinear().domain([-2, 2]).range([box.height - MARGIN.bottom, MARGIN.top])
+      const y = d3.scaleLinear().domain([tickY[0], tickY[tickY.length - 1]]).range([box.height - MARGIN.bottom, MARGIN.top])
       const line = d3.line().x(d => x(d.x)).y(d => y(d.y))
 
       const ds = [[], [], [], [], [], []]
@@ -62,25 +90,39 @@ export default {
       box.width = parseInt(root.value.getBoundingClientRect().width)
       box.height = parseInt(root.value.getBoundingClientRect().height)
     }
-
+    
     const tickXAttr = index => {
       const width = box.width - MARGIN.right - MARGIN.left
+      const visibleTick = tickX.value.includes((index + 1).toString())
       return {
         stroke: '#FFFFFF',
+        opacity: visibleTick ? 0.3 : 0.1,
         x1: MARGIN.left + index / (numSample.value - 1) * width,
-        y1: box.height,
+        y1: MARGIN.top,
         x2: MARGIN.left + index / (numSample.value - 1) * width,
-        y2: box.height - MARGIN.bottom
+        y2: box.height - 24
       }
     }
+
+    const tickXTextAttr = index => {
+      const width = box.width - MARGIN.right - MARGIN.left
+      return {
+        fill: '#FFFFFF',
+        'font-size': 12,
+        'text-anchor': 'middle',
+        transform: `translate(${MARGIN.left + index / (numSample.value - 1) * width}, ${box.height - 6})`
+      }
+    }
+
     const tickYAttr = index => {
       const height = box.height - MARGIN.top - MARGIN.bottom
       return {
         stroke: '#FFFFFF',
-        x1: 0,
-        y1: MARGIN.top + height - index / 20 * height,
-        x2: MARGIN.left * 0.2,
-        y2: MARGIN.top + height - index / 20 * height
+        opacity: 0.1,
+        x1: MARGIN.left - 5,
+        y1: MARGIN.top + height - index / (tickY.length - 1) * height,
+        x2: box.width - MARGIN.right,
+        y2: MARGIN.top + height - index / (tickY.length - 1) * height
         
       }
     }
@@ -91,7 +133,7 @@ export default {
         fill: '#FFFFFF',
         'font-size': 12,
         'text-anchor': 'end',
-        transform: `translate(${MARGIN.left - 10}, ${MARGIN.top + height - index / 20 * height + 3})`
+        transform: `translate(${MARGIN.left - 10}, ${MARGIN.top + height - index / (tickY.length - 1) * height + 5})`
       }
     }
 
@@ -115,7 +157,7 @@ export default {
     })
     
 
-    return {root, paths, box, tickXAttr, tickYAttr, tickYTextAttr, middleLineStyle, numSample, colorScheme}
+    return {root, paths, box, tickX, tickXAttr, tickXTextAttr, tickY, tickYAttr, tickYTextAttr, middleLineStyle, numSample, colorScheme}
   }
 }
 </script>
