@@ -28,11 +28,11 @@
         <div class="captures__records__wrapper">
           <div :class="captureItemClass(i)" v-for="({t}, i) in capturedBuffer" :key="i" @click="() => selectCapturedBuffer(i)">
             captured at: {{ t }}
-            <span class="delete" @click="() => removeCapturedItem(i)">&#10005;</span>
+            <span class="delete" @click="e => removeCapturedItem(i, e)">&#10005;</span>
           </div>
           <div class="new-capture-indicator" :style="getIndicatorStyle()"></div>
         </div>
-        <DataVisual :sensorData="capturedBuffer[selectedCapIndex]"></DataVisual>
+        <DataVisual :sensorData="getSensorData()"></DataVisual>
       </div>
       
     </div>
@@ -45,7 +45,7 @@ import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
 import { getConnectedDevices } from '@/js/device'
 import {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer, captureSnaphot,
   selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, isCaptureDisabled
 } from '@/js/capture'
 
@@ -80,6 +80,10 @@ export default {
       selectedCapIndex.value = selectedCapIndex.value === i ? -1 : i
     }
 
+    const getSensorData = () => {
+      return selectedCapIndex.value < 0 ? captureSnaphot : capturedBuffer.value[selectedCapIndex.value]
+    }
+
     const download = ref(null)
 
     const saveCapture = () => {
@@ -99,7 +103,7 @@ export default {
       numSample, threshold, SAMPLE_RAMGE, THRESHOLD_RANGE,
       capturedBuffer, startCapture, resetCapture, captureStarted,
       selectedCapIndex, removeCapturedItem, getConnectedDevices, isCaptureDisabled,
-      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer, saveCapture
+      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer, saveCapture, getSensorData
     }
   }
   

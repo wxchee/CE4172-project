@@ -108,7 +108,6 @@ export default {
     }
 
     const resizeObserver = new ResizeObserver(onResize)
-    
 
     onMounted(() => {
       resizeObserver.observe(root.value)

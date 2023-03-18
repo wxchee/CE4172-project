@@ -1,16 +1,17 @@
 import { getConnectedDevices } from "./device"
-import {ref, reactive, nextTick} from 'vue'
-const SAMPLE_RAMGE = [10, 100]
-const THRESHOLD_RANGE = [0, 0.8]
+import {ref, reactive} from 'vue'
+const SAMPLE_RAMGE = [10, 50]
+const THRESHOLD_RANGE = [0, 0.6]
 let curSample = 0
 let canCapture = false
 
-const threshold = ref((THRESHOLD_RANGE[0] + (THRESHOLD_RANGE[1] - THRESHOLD_RANGE[0]) * 0.2).toFixed(2))
+const threshold = ref((THRESHOLD_RANGE[0] + (THRESHOLD_RANGE[1] - THRESHOLD_RANGE[0]) * 0.3).toFixed(2))
 let captureStarted = ref(false)
 const numSample = ref(SAMPLE_RAMGE[0])
 const buffer = reactive({ aX: 0, aY: 0, aZ: 0, gX: 0, gY: 0, gZ: 0 })
 const capturedBuffer = ref([])
 const selectedCapIndex = ref(-1)
+const captureSnaphot = reactive({t: 0, val: []})
 
 let temp = []
 const onReceiveNewDataForDataCollect = async newVal => {
@@ -41,6 +42,11 @@ const onReceiveNewDataForDataCollect = async newVal => {
           }
         }
     }
+
+    if (captureSnaphot.val.length >= numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value)
+    captureSnaphot.t = Date.now()
+    captureSnaphot.val.push(newVal)
+    
 }
 
 const startCapture = () => {
@@ -62,8 +68,13 @@ const resetCapture = () => {
   curSample = 0
 }
 
-const removeCapturedItem = capturedIndex => {
+const removeCapturedItem = (capturedIndex, e) => {
   capturedBuffer.value.splice(capturedIndex, 1)
+  if (selectedCapIndex.value == capturedIndex) {
+    selectedCapIndex.value = -1
+  }
+
+  if (e) e.stopPropagation()
 }
 
 const isCaptureDisabled = () => {
@@ -71,6 +82,6 @@ const isCaptureDisabled = () => {
 }
 
 export {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer, selectedCapIndex,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer, selectedCapIndex, captureSnaphot,
   onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, isCaptureDisabled
 }
