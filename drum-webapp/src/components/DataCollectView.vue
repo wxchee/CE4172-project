@@ -18,15 +18,15 @@
         </div>
     </div>
     <div class="captures">
-      <div class="captures__header" :class="{disabled: isCaptureDisabled()}">
+      <div class="captures__header">
         <h4>Captured: {{ capturedBuffer.length }}</h4>
-        <GenericButton @click="startCapture">{{captureStarted ? 'Pause' : 'Start'}}</GenericButton>
-        <GenericButton @click="resetCapture">Clear</GenericButton>
-        <a class="downloadCSV" download="capture.csv" ref="download" :class="{disabled: !capturedBuffer.length}" @click="saveCapture">Save as .csv</a>
+        <GenericButton :class="{disabled: isCaptureDisabled()}" @click="startCapture">{{captureStarted ? 'Pause' : 'Start'}}</GenericButton>
+        <GenericButton :class="{disabled: !capturedBuffer.length}" @click="resetCapture">Clear</GenericButton>
+        <a class="downloadCSV" :class="{disabled: !capturedBuffer.length}" download="capture.csv" ref="download" @click="saveCapture">Save as .csv</a>
       </div>
       <div class="captures__records">
         <div class="captures__records__wrapper">
-          <div :class="captureItemClass(i)" v-for="({t}, i) in capturedBuffer" :key="i" @click="() => selectedCapIndex = i">
+          <div :class="captureItemClass(i)" v-for="({t}, i) in capturedBuffer" :key="i" @click="() => selectCapturedBuffer(i)">
             captured at: {{ t }}
             <span class="delete" @click="() => removeCapturedItem(i)">&#10005;</span>
           </div>
@@ -76,7 +76,12 @@ export default {
       }
     }
 
+    const selectCapturedBuffer = i => {
+      selectedCapIndex.value = selectedCapIndex.value === i ? -1 : i
+    }
+
     const download = ref(null)
+
     const saveCapture = () => {
       pauseCapture()
       const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => bf.val.join("\r\n")).join("\r\n\n")
@@ -94,7 +99,7 @@ export default {
       numSample, threshold, SAMPLE_RAMGE, THRESHOLD_RANGE,
       capturedBuffer, startCapture, resetCapture, captureStarted,
       selectedCapIndex, removeCapturedItem, getConnectedDevices, isCaptureDisabled,
-      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, saveCapture
+      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer, saveCapture
     }
   }
   
@@ -207,7 +212,7 @@ export default {
           height: 100%;
           overflow-y: hidden;
           background-color: #ffffff;
-          overflow-y: scroll;
+          overflow-y: auto;
 
           & > * {
             background-color: #e8e8e8;
@@ -225,9 +230,11 @@ export default {
             cursor: pointer;
             box-sizing: border-box;
           
-            &.selected {
-              background-color: #b5b5b5;
-              cursor: default;
+            &.selected,
+            &.selected:hover {
+              background-color: #111111;
+              color: #FFFFFF;
+
             }
 
             .delete {
@@ -266,6 +273,7 @@ export default {
       .data-visual {
         width: 100%;
         height: 100%;
+        background-color: #111111;
       }
     }
   }

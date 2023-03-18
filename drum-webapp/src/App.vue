@@ -50,7 +50,7 @@ body {
   font-size: 20px;
   padding: 0;
   margin: 0;
-  background-color: #111111;
+  background-color: #000000;
   height: 100vh;
   overflow: hidden;
 }

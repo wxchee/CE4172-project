@@ -71,7 +71,7 @@ export default {
     z-index: 1;
     top: 0;
     left: 0;
-    transform: translateX(calc(-100% + 42px));
+    transform: translateX(calc(-100% + 32px));
     display: flex;
     align-items: flex-start;
     transition: transform 0.2s;
@@ -89,8 +89,9 @@ export default {
       transform: translateY(15px);
       color: #FFFFFF;
       line-height: 1;
-      width: 40px;
+      width: 30px;
       height: 35px;
+      padding-right: 5px;
       background-color:#0082FC;
       display: flex;
       align-items: center;
@@ -119,7 +120,7 @@ export default {
     }
 
     .device-panel__content {
-      padding: 18px 10px;
+      padding: 18px 35px 18px 42px;
       background-color:#002b53;
       border-right: 3px solid #0082FC;
 
