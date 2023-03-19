@@ -1,6 +1,7 @@
 import {reactive} from 'vue'
 import {mode} from '@/js/mode'
 import {onReceiveNewDataForDataCollect} from '@/js/capture'
+import { onDrumHit } from './drum'
 
 const SERVICE_UUID = 'f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5'
 const gesture_characteristic_UUID = '2f925c9d-0a5b-4217-8e63-2d527c9211c1'
@@ -59,13 +60,13 @@ const onReceiveIncomingData = e => {
   const newVal = decoder.decode(e.target.value)
   if (mode.index === 0) { // drum inference mode
     console.log(newVal)
+    onDrumHit(parseInt(newVal))
   } else { // index === 1: data collection mode
     onReceiveNewDataForDataCollect(newVal)
   }
 }
 
 const getConnectedDevices = () => Object.keys(devices)
-  // .filter(dk => devices[dk].char && devices[dk].char.service.device.gatt.connected)
   .filter(dk => devices[dk].gatt && devices[dk].gatt.connected)
   .map(dk => devices[dk])
 

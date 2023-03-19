@@ -57,7 +57,7 @@ export default {
   setup() {
     const strength = computed(() => {
       return ((Math.abs(buffer.aX) + Math.abs(buffer.aY) + Math.abs(buffer.aZ) +
-            Math.abs(buffer.gX) + Math.abs(buffer.gY) + Math.abs(buffer.gZ)) / 6).toFixed(2)
+            Math.abs(buffer.gX) + Math.abs(buffer.gY) + Math.abs(buffer.gZ)) / 6).toFixed(3)
     })
     
     const captureItemClass = capturedIndex => {

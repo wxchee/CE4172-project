@@ -5,9 +5,9 @@ const THRESHOLD_RANGE = [0, 0.6]
 let curSample = 0
 let canCapture = false
 
-const threshold = ref((THRESHOLD_RANGE[0] + (THRESHOLD_RANGE[1] - THRESHOLD_RANGE[0]) * 0.3).toFixed(2))
+const threshold = ref((THRESHOLD_RANGE[0] + (THRESHOLD_RANGE[1] - THRESHOLD_RANGE[0]) * 0.3).toFixed(3))
 let captureStarted = ref(false)
-const numSample = ref(SAMPLE_RAMGE[0])
+const numSample = ref(20)
 const buffer = reactive({ aX: 0, aY: 0, aZ: 0, gX: 0, gY: 0, gZ: 0 })
 const capturedBuffer = ref([])
 const selectedCapIndex = ref(-1)
@@ -25,7 +25,7 @@ const onReceiveNewDataForDataCollect = async newVal => {
   
     if (captureStarted.value) {
       if (!canCapture && ((Math.abs(aX) + Math.abs(aY) + Math.abs(aZ) +
-          Math.abs(gX) + Math.abs(gY) + Math.abs(gZ)) / 6).toFixed(2) >= threshold.value) {
+          Math.abs(gX) + Math.abs(gY) + Math.abs(gZ)) / 6).toFixed(3) >= threshold.value) {
             canCapture = true
             curSample = 0
             temp = []
