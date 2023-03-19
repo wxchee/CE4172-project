@@ -29,7 +29,7 @@
 
 <script>
 import {computed, onMounted, ref, reactive} from 'vue'
-import { numSample } from '@/js/capture'
+import { numSample, normaliseData } from '@/js/capture'
 
 const d3 = Object.assign({}, require('d3-scale'), require('d3-shape'))
 const MARGIN = {top: 50, right: 15, bottom: 40, left: 40}
@@ -37,12 +37,23 @@ const colorScheme = ['#0352fc', '#3d7bff', '#7da7ff', '#ff5e00', '#ff8842', '#ff
 
 const range = (start, stop, step, fp=0) => Array.from({length: Math.ceil((stop - start) / step) + 1}, (x, i) => (start + i * step).toFixed(fp))
 
+
+
 export default {
   props: {
     sensorData: Object,
     default: null
   },
   setup (props) {
+    // const normalisedSensorData = computed(() => {
+    //   if (!props.sensorData || !props.sensorData.val.length) return []
+
+    //   return props.sensorData.val.map(dataStr => {
+    //     const [aX, aY, aZ, gX, gY, gZ] = dataStr.split(",").map(d => parseFloat(d))
+    //     return [normaliseAcc(aX), normaliseAcc(aY), normaliseAcc(aZ), normaliseGyro(gX), normaliseGyro(gY), normaliseGyro(gZ)]
+    //   })
+    // })
+
     const root = ref(null)
     const box = reactive({width: 0, height: 0})
 
@@ -65,24 +76,28 @@ export default {
       return rawTickX
     })
 
-    const tickY = range(-1, 1, 0.1, 1)
+    const tickY = range(0, 1, 0.1, 1)
 
     
     const paths = computed(() => {
       if (!props.sensorData) return []
+      
       const x = d3.scaleLinear().domain([0, numSample.value - 1]).range([MARGIN.left, box.width - MARGIN.right])  
       const y = d3.scaleLinear().domain([tickY[0], tickY[tickY.length - 1]]).range([box.height - MARGIN.bottom, MARGIN.top])
       const line = d3.line().x(d => x(d.x)).y(d => y(d.y))
 
       const ds = [[], [], [], [], [], []]
 
-      props.sensorData.val.forEach((dAll, i) => {
-        dAll.split(',').forEach((d, j) => {
+      props.sensorData.val.map(dStr => normaliseData(dStr)).forEach((dAll, i) => {
+        dAll.forEach((d, j) => {
           ds[j].push({x: i, y: d})
         })
       })
 
-      return ds.map((d, i) => ({ color: colorScheme[i], d: line(d)}))
+      // return ds.map((d, i) => ({ color: colorScheme[i], d: line(d)}))
+      return ds.filter(d => line(d) && line(d).indexOf("NaN") === -1).map((d, i) => {
+        return { color: colorScheme[i], d: line(d)}
+      })
     })
 
     const onResize = () => {

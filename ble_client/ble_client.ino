@@ -24,7 +24,7 @@ const char * device_name = "Drum_L";
 // const char * device_name = "Drum_R";
 
 BLEService service(service_uuid);
-BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 47);
+BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 44);
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
 
@@ -37,7 +37,7 @@ volatile uint8_t mode = 0; // 0: demo, 1: data collection
 volatile bool isSampling = false;
 const uint8_t numSample = 20;
 uint8_t sampleRead = 0;
-float threshold = 0.18;
+float threshold = 0.19;
 float aX, aY, aZ, gX, gY, gZ;
 // float samples[numSample * 6];
 float bf[6];
@@ -173,12 +173,12 @@ static void onDemoMode () {
     }
 
     if (isSampling) {
-      input->data.f[sampleRead * 6 + 0] = bf[0];
-      input->data.f[sampleRead * 6 + 1] = bf[1];
-      input->data.f[sampleRead * 6 + 2] = bf[2];
-      input->data.f[sampleRead * 6 + 3] = bf[3];
-      input->data.f[sampleRead * 6 + 4] = bf[4];
-      input->data.f[sampleRead * 6 + 5] = bf[5];
+      input->data.f[sampleRead * 6 + 0] = (aX + 4.0) / 8.0;
+      input->data.f[sampleRead * 6 + 1] = (aY + 4.0) / 8.0;
+      input->data.f[sampleRead * 6 + 2] = (aZ + 4.0) / 8.0;
+      input->data.f[sampleRead * 6 + 3] = (gX + 2000.0) / 4000.0;
+      input->data.f[sampleRead * 6 + 4] = (gY + 2000.0) / 4000.0;
+      input->data.f[sampleRead * 6 + 5] = (gZ + 2000.0) / 4000.0;
 
       sampleRead++;
 
@@ -221,13 +221,13 @@ static void onDataCollectMode () {
     IMU.readAcceleration(aX, aY, aZ);
     IMU.readGyroscope(gX, gY, gZ);
     // normalise accelerometer and gyroscope abs value to range: [0, 1]
-    bf[0] = aX / 4.0;
-    bf[1] = aY / 4.0;
-    bf[2] = aZ / 4.0;
-    bf[3] = gX / 2000.0;
-    bf[4] = gY / 2000.0;
-    bf[5] = gZ / 2000.0;
-    gestureChar.writeValue(String(bf[0])+","+String(bf[1])+","+String(bf[2])+","+String(bf[3])+","+String(bf[4])+","+String(bf[5]));
+    // bf[0] = aX / 4.0;
+    // bf[1] = aY / 4.0;
+    // bf[2] = aZ / 4.0;
+    // bf[3] = gX / 2000.0;
+    // bf[4] = gY / 2000.0;
+    // bf[5] = gZ / 2000.0;
+    gestureChar.writeValue(String(aX,3)+","+String(aY,3)+","+String(aZ,3)+","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1));
   }
 }
 

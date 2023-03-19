@@ -62,6 +62,7 @@ const onReceiveIncomingData = e => {
     console.log(newVal)
     onDrumHit(parseInt(newVal))
   } else { // index === 1: data collection mode
+    // console.log(newVal)
     onReceiveNewDataForDataCollect(newVal)
   }
 }

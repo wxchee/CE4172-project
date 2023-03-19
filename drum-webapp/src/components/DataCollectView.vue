@@ -44,11 +44,12 @@
 
 <script>
 import { ref, computed, onBeforeUnmount } from 'vue'
+import { normaliseData } from '@/js/capture'
 import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
 
 import {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, buffer, capturedBuffer, captureSnaphot,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, th, capturedBuffer, captureSnaphot,
   selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 } from '@/js/capture'
 
@@ -56,8 +57,7 @@ export default {
   components: { GenericButton, DataVisual },
   setup() {
     const strength = computed(() => {
-      return ((Math.abs(buffer.aX) + Math.abs(buffer.aY) + Math.abs(buffer.aZ) +
-            Math.abs(buffer.gX) + Math.abs(buffer.gY) + Math.abs(buffer.gZ)) / 6).toFixed(3)
+      return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
     })
     
     const captureItemClass = capturedIndex => {
@@ -102,7 +102,10 @@ export default {
 
     const saveCapture = () => {
       pauseCapture()
-      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => bf.val.join("\r\n")).join("\r\n\n")
+      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => {
+        return bf.val.map(bfStr => normaliseData(bfStr)).join('\r\n')
+        // return bf.val.join("\r\n")
+      }).join("\r\n\n")
 
       const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'})
       
