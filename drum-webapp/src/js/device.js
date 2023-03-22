@@ -1,4 +1,4 @@
-import {reactive} from 'vue'
+import {reactive, ref} from 'vue'
 import {mode} from '@/js/mode'
 import {captureStarted, numSample, onReceiveNewDataForDataCollect, threshold} from '@/js/capture'
 import { onDrumHit } from './drum'
@@ -10,6 +10,9 @@ const devices = {
   left: reactive({ name: '', gatt: null, gesChar: null, imuChar: null }),
   right: reactive({ name: '', gatt: null, gesChar: null, imuChar: null })
 }
+
+const cooldown = ref(40)
+const COOLDOWN_RANGE = [20, 99]
 
 const encoder = new TextEncoder('utf-8')
 const decoder = new TextDecoder('utf-8')
@@ -60,11 +63,13 @@ const disconnectBTDevice = async d => {
 
 const onReceiveIncomingData = e => {
   const newVal = decoder.decode(e.target.value)
-  if (newVal.slice(0,2) === 'm0') {  // drum inference mode
+  if (newVal.slice(1,3) === 'm0') {  // drum inference mode
     // console.log(newVal[2])
-    onDrumHit(parseInt(newVal[2]))
+    onDrumHit(parseInt(newVal[3]))
   } else {  // data collection mode
-    onReceiveNewDataForDataCollect(newVal)
+    if (newVal[0] === '0') {
+      onReceiveNewDataForDataCollect(newVal.slice(1))
+    }
   }
 }
 
@@ -73,16 +78,16 @@ const getConnectedDevices = () => Object.keys(devices)
   .map(dk => devices[dk])
 
 
-const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleCount=numSample.value,th=threshold.value) => {
+const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleCount=numSample.value,th=threshold.value, coold=cooldown.value) => {
   let sentCount = 0
-  const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${parseFloat(th).toFixed(3)}`
+  const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`
   console.log(formattedMsg)
   const connectedDevices = getConnectedDevices()
 
   connectedDevices.forEach(async d => {
     await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
 
-    console.log(`[-> ${d.name}]: mode(${m}) canCapture(${canCapture}) sampleCount(${sampleCount}) threshold(${th})`)
+    console.log(`[-> ${d.name}]: mode(${m}) capture(${canCapture}) data(${sampleCount}) cooldown(${coold}) threshold(${th})`)
 
     sentCount++
   })
@@ -90,4 +95,4 @@ const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleC
   return sentCount == connectedDevices.length
 }
 
-export {devices, connectBTDevice, disconnectBTDevice, getConnectedDevices, updateDeviceParam}
+export {devices, connectBTDevice, disconnectBTDevice, getConnectedDevices, updateDeviceParam, cooldown, COOLDOWN_RANGE}

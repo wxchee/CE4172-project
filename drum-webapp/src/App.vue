@@ -11,6 +11,28 @@
         :class="navbarOptionClass(mode)" 
         @click="() => setMode(mode)">{{ mode.label }}</div>
     </div>
+    <div class="settings" :class="{disabled: captureStarted}">
+      <div class="settings__item">
+        <span>{{numSample}} sample per capture</span>
+        <input type="range" :min="SAMPLE_RAMGE[0]" :max="SAMPLE_RAMGE[1]" v-model="numSample" @mouseup="() => updateDeviceParam()" />
+      </div>
+      <div class="settings__item">
+        <span>Cooldown: {{cooldown}}</span>
+        <input type="range" :min="COOLDOWN_RANGE[0]" :max="COOLDOWN_RANGE[1]" step="1" v-model="cooldown" @mouseup="() => updateDeviceParam()" />
+      </div>
+      <div class="settings__item">
+        <span>Threshold: {{threshold}}</span>
+        <input type="range" :min="THRESHOLD_RANGE[0]" :max="THRESHOLD_RANGE[1]" step="0.01" v-model="threshold" @mouseup="() => updateDeviceParam()" />
+      </div>
+      
+      <div class="strength">
+          <span>Current strength: {{ strength }}</span>
+          <div class="bar">
+            <span :style="getStrengthBarStyle()"></span>
+            <span class="mark" :style="{left: `calc(${threshold / THRESHOLD_RANGE[1] } * 100%)`}"></span>
+          </div>
+        </div>
+    </div>
     <div class="view-container">
       <DemoView v-if="mode.index === MODES[0].index"></DemoView>
       <DataCollectView v-else></DataCollectView>
@@ -21,10 +43,12 @@
 
 <script>
 import {audioReady, isAudioLoading, loadAudioDatas} from '@/js/audio'
+import {updateDeviceParam, cooldown, COOLDOWN_RANGE} from '@/js/device'
 import DemoView from './components/DemoView.vue'
 import DataCollectView from './components/DataCollectView.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import {MODES, mode, setMode} from '@/js/mode'
+import { strength, captureStarted, numSample, SAMPLE_RAMGE, threshold, THRESHOLD_RANGE } from './js/capture'
 
 export default {
   name: 'drum-web-app',
@@ -38,7 +62,18 @@ export default {
       }
     }
 
-    return {mode, MODES, setMode, navbarOptionClass, loadAudioDatas, audioReady, isAudioLoading}
+    const getStrengthBarStyle = () => {
+      return {
+        width: `calc(${ Math.min(1, strength.value / THRESHOLD_RANGE[1])} * 100%)`,
+        backgroundColor: strength.value > threshold.value ? '#42ff75' : 'red'
+      }
+    }
+
+    return {
+      mode, MODES, setMode, navbarOptionClass, loadAudioDatas, audioReady, isAudioLoading,
+      captureStarted, numSample, SAMPLE_RAMGE, threshold, THRESHOLD_RANGE, updateDeviceParam,
+      strength, getStrengthBarStyle, cooldown, COOLDOWN_RANGE
+    }
   }
 }
 </script>
@@ -100,7 +135,62 @@ body {
         opacity: 0.9;
       }
     }
-  }
+  } // navbar
+
+  .settings {
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    font-size: 17px;
+    color: #FFFFFF;
+
+    &.disabled {
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .settings__item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+
+      input {
+        width: 50%;
+        height: 5px;
+        margin: 0;
+      }
+    }
+    .strength {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+
+      .bar {
+        position: relative;
+        display: block;
+        height: 4px;
+        background-color: #FFFFFF;
+        width: 50%;
+        overflow: hidden;
+
+        span {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background-color: red;
+        }
+
+        .mark {
+          width: 2px;
+          background-color: #333333;
+        }
+      }
+    }
+  } // settings
 
   .view-container {
     height: 100%;

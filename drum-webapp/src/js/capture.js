@@ -1,5 +1,5 @@
 import { getConnectedDevices, updateDeviceParam } from "./device"
-import {ref, reactive} from 'vue'
+import {ref, reactive, computed} from 'vue'
 const SAMPLE_RAMGE = [10, 50]
 const THRESHOLD_RANGE = [0, 0.6]
 let curSample = 0
@@ -7,8 +7,11 @@ let canCapture = false
 
 const threshold = ref(0.16)
 let captureStarted = ref(false)
-const numSample = ref(20)
+const numSample = ref(15)
 const th = reactive({ aX: 0, aY: 0, aZ: 0, gX: 0, gY: 0, gZ: 0 })
+const strength = computed(() => {
+  return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
+})
 const capturedBuffer = ref([])
 const selectedCapIndex = ref(-1)
 const captureSnaphot = reactive({t: 0, val: []})
@@ -76,7 +79,7 @@ const resetCapture = () => {
 const removeCapturedItem = (capturedIndex, e) => {
   capturedBuffer.value.splice(capturedIndex, 1)
   if (selectedCapIndex.value == capturedIndex && selectedCapIndex.value === capturedBuffer.value.length) {
-    console.log('match', selectedCapIndex.value, capturedIndex)
+    // console.log('match', selectedCapIndex.value, capturedIndex)
     selectedCapIndex.value =  capturedIndex - 1
   }
 
@@ -88,6 +91,6 @@ const hasAvailableDevices = () => {
 }
 
 export {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, th, capturedBuffer, selectedCapIndex, captureSnaphot,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, strength, capturedBuffer, selectedCapIndex, captureSnaphot,
   onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 }

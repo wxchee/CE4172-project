@@ -20,30 +20,37 @@ namespace {
 const char service_uuid[128] = "f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5";
 const char gesture_char_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
 
-const char * device_name = "Drum_L";
+const uint8_t device_id = 1;
+const char * device_name = device_id ? "DRUM_L" : "DRUM_R";
 // const char * device_name = "Drum_R";
 
 BLEService service(service_uuid);
-BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 45);
+BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 46);
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
 
 static void onDataCollectMode();
 static void onDemoMode();
 
+// variables to be updated by request from webapp
 static volatile uint8_t mode = 0; // 0: demo, 1: data collection
+static volatile uint8_t numSample = 15;
+static volatile float threshold = 0.16;
+static volatile bool canCapture = false;
+static volatile uint8_t cooldown = 40;
+
 bool isSampling = false;
-static volatile uint8_t numSample = 20;
 const uint8_t MAX_POSSIBLE_NUM_SAMPLE = 50;
 uint8_t sampleRead = 0;
-static volatile float threshold = 0.16;
-float aX, aY, aZ, gX, gY, gZ;
 
+float aX, aY, aZ, gX, gY, gZ;
 float bf[6];
 
 bool ledOn = false;
-static volatile bool canCapture = false;
+
 // float coolDown = 0;
+float dt = 0;
+float prevMs = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -113,21 +120,18 @@ void loop() {
   BLEDevice central = BLE.central();
 
   if (central) {
-    while (central.connected()) {      
+    while (central.connected()) {
+      
       if (ledOn == 0) {  // turn on the LED to indicate the connection:
         digitalWrite(LEDR, HIGH);
         digitalWrite(LEDG, LOW);
         ledOn = 1;
-        // Serial.print("Connected to central: "); Serial.println(central.address());
+        Serial.print("Connected to central: "); Serial.println(central.address());
       } 
-      // data collection mode
-      if (mode == 1) { // data collection
-        onDataCollectMode();
-        continue;
-      }
+      
+      if (mode == 1) onDataCollectMode();
+      else onDemoMode();
 
-      // demo mode
-      onDemoMode();
     }
   }
 
@@ -158,7 +162,10 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
   strncpy(valStr, ((char *) characteristic.value()) + 2, 2);
   numSample = atoi(valStr);
 
-  strncpy(valStr, ((char *) characteristic.value()) + 4, 5);
+  strncpy(valStr, ((char *) characteristic.value()) + 4, 2);
+  cooldown = atoi(valStr);
+
+  strncpy(valStr, ((char *) characteristic.value()) + 6, 5);
   threshold = atof(valStr);
 }
 
@@ -167,8 +174,8 @@ const char* GESTURES_I[] = {"0", "1", "2", "3", "4", "5"};
 int maxI = -1;
 float maxCorr = 0;
 
-float dt = 0;
 static void onDemoMode () {
+  
   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
     IMU.readAcceleration(aX, aY, aZ);
     IMU.readGyroscope(gX, gY, gZ);
@@ -186,7 +193,6 @@ static void onDemoMode () {
       sampleRead = 0;
       maxCorr = 0;
       maxI = -1;
-      dt = millis();
     }
 
     if (isSampling) {
@@ -209,25 +215,22 @@ static void onDemoMode () {
           return;
         }
         for (int i=0; i<6;i++) {
-          Serial.print(GESTURES[i]);
-          Serial.print(": ");
-          Serial.print(output->data.f[i], 2);
-          Serial.print(" ");
+          // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
 
           if (maxCorr < output->data.f[i]) {
             maxI = i;
             maxCorr = output->data.f[i];
           }
         }
+        gestureChar.writeValue(String(device_id) + "m0" + String(GESTURES_I[maxI]));
+        Serial.println(String(GESTURES[maxI]));
 
-        dt = millis() - dt;
-        Serial.println(String(GESTURES[maxI]) + "  "+ String(dt));
-        
-
-
-        gestureChar.writeValue("m0" + String(GESTURES_I[maxI]));
-        // Serial.println("infer!");
+        // cooldown...
+        delay(cooldown);
       }
+    } else {
+      gestureChar.writeValue(String(device_id) + "m1_0" + String(aX,3)+","+String(aY,3)+","+String(aZ,3)+","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1));
+      delay(25);
     }
 
   }
@@ -253,7 +256,6 @@ static void onDataCollectMode () {
       sampleRead = 0;
       maxCorr = 0;
       maxI = -1;
-      dt = millis();
       // gestureChar.writeValue("m1_0");
       // Serial.println("start capture.");
     }
@@ -271,14 +273,15 @@ static void onDataCollectMode () {
         isCollecting = false;
         for (int i=0; i<numSample;i++) {
           // Serial.println("send collected " + String(s[i][0], 3) + " to server");
-          gestureChar.writeValue("m1_1" + String(s[i][0], 3)+","+String(s[i][1], 3)+","+String(s[i][2], 3)+","+String(s[i][3], 3)+","+String(s[i][4], 3)+","+String(s[i][5], 3));
-          delay(40);
+          gestureChar.writeValue(String(device_id) + "m1_1" + String(s[i][0], 3)+","+String(s[i][1], 3)+","+String(s[i][2], 3)+","+String(s[i][3], 3)+","+String(s[i][4], 3)+","+String(s[i][5], 3));
+          delay(50);
         }
-        gestureChar.writeValue("m1_2");
-        Serial.println("data collection completed in " + String(dt));        
+        gestureChar.writeValue(String(device_id) + "m1_2");
+
+        Serial.println("data collection completed in " + String(millis() - dt));        
       }
     } else {
-      gestureChar.writeValue("m1_0" + String(aX,3)+","+String(aY,3)+","+String(aZ,3)+","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1));
+      gestureChar.writeValue(String(device_id) + "m1_0" + String(aX,3)+","+String(aY,3)+","+String(aZ,3)+","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1));
       delay(25);
     }
   }

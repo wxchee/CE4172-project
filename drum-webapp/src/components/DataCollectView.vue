@@ -1,22 +1,5 @@
 <template>
   <div class="data-collection-view">
-    <div class="settings" :class="{disabled: captureStarted}">
-      <div class="settings__item">
-        <span>{{numSample}} sample per capture</span>
-        <input type="range" :min="SAMPLE_RAMGE[0]" :max="SAMPLE_RAMGE[1]" v-model="numSample" @mouseup="() => updateDeviceParam()" />
-      </div>
-      <div class="settings__item">
-        <span>threshold: {{threshold}}</span>
-        <input type="range" :min="THRESHOLD_RANGE[0]" :max="THRESHOLD_RANGE[1]" step="0.01" v-model="threshold" @mouseup="() => updateDeviceParam()" />
-      </div>
-      <div class="strength">
-          <span>Current strength: {{ strength }}</span>
-          <div class="bar">
-            <span :style="getStrengthBarStyle()"></span>
-            <span class="mark" :style="{left: `calc(${threshold / THRESHOLD_RANGE[1] } * 100%)`}"></span>
-          </div>
-        </div>
-    </div>
     <div class="captures">
       <div class="captures__header">
         <h4>Captured: {{ capturedBuffer.length }}</h4>
@@ -43,21 +26,18 @@
 </template>
 
 <script>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
 import {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, remoteCapturingInProgress, captureStarted, numSample, th, capturedBuffer, captureSnaphot,
-  selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
+  threshold, captureStarted, capturedBuffer, captureSnaphot,
+  selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices,
+  strength
 } from '@/js/capture'
 import { updateDeviceParam} from '@/js/device'
 export default {
   components: { GenericButton, DataVisual },
   setup() {
-    const strength = computed(() => {
-      return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
-    })
-    
     const captureItemClass = capturedIndex => {
       return {
         'captures__records__item': true,
@@ -69,13 +49,6 @@ export default {
     const getIndicatorStyle = () => {
       const ratio = captureStarted.value ? Math.min(1, strength.value / threshold.value) : 0
       return { width: `calc(${ratio} * 100%)` }
-    }
-
-    const getStrengthBarStyle = () => {
-      return {
-        width: `calc(${ Math.min(1, strength.value / THRESHOLD_RANGE[1])} * 100%)`,
-        backgroundColor: strength.value > threshold.value ? '#42ff75' : 'red'
-      }
     }
 
     const selectCapturedBuffer = i => {
@@ -117,10 +90,9 @@ export default {
     })
 
     return {
-      numSample, threshold, SAMPLE_RAMGE, THRESHOLD_RANGE,
-      capturedBuffer, startCapture, resetCapture, captureStarted, remoteCapturingInProgress,
+      capturedBuffer, startCapture, resetCapture, captureStarted,
       selectedCapIndex, removeCapturedItem, hasAvailableDevices,
-      strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer,
+      download, captureItemClass, getIndicatorStyle, selectCapturedBuffer,
       saveCapture, getSensorData, getCurrentView, updateDeviceParam
     }
   }
@@ -135,59 +107,59 @@ export default {
   display: flex;
   flex-direction: column;
 
-  .settings {
-    padding: 10px;
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
-    font-size: 17px;
+  // .settings {
+  //   padding: 10px;
+  //   box-sizing: border-box;
+  //   width: 100%;
+  //   max-width: 500px;
+  //   margin: 0 auto;
+  //   font-size: 17px;
 
-    &.disabled {
-      pointer-events: none;
-      opacity: 0.4;
-    }
+  //   &.disabled {
+  //     pointer-events: none;
+  //     opacity: 0.4;
+  //   }
 
-    .settings__item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
+  //   .settings__item {
+  //     display: flex;
+  //     align-items: center;
+  //     justify-content: space-between;
+  //     margin-bottom: 10px;
 
-      input {
-        width: 50%;
-        height: 5px;
-        margin: 0;
-      }
-    }
-    .strength {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
+  //     input {
+  //       width: 50%;
+  //       height: 5px;
+  //       margin: 0;
+  //     }
+  //   }
+  //   .strength {
+  //     display: flex;
+  //     align-items: baseline;
+  //     justify-content: space-between;
 
-      .bar {
-        position: relative;
-        display: block;
-        height: 4px;
-        background-color: #FFFFFF;
-        width: 50%;
-        overflow: hidden;
+  //     .bar {
+  //       position: relative;
+  //       display: block;
+  //       height: 4px;
+  //       background-color: #FFFFFF;
+  //       width: 50%;
+  //       overflow: hidden;
 
-        span {
-          position: absolute;
-          top: 0;
-          left: 0;
-          height: 100%;
-          background-color: red;
-        }
+  //       span {
+  //         position: absolute;
+  //         top: 0;
+  //         left: 0;
+  //         height: 100%;
+  //         background-color: red;
+  //       }
 
-        .mark {
-          width: 2px;
-          background-color: #333333;
-        }
-      }
-    }
-  } // settings
+  //       .mark {
+  //         width: 2px;
+  //         background-color: #333333;
+  //       }
+  //     }
+  //   }
+  // } // settings
 
   .captures {
     height: 100%;
