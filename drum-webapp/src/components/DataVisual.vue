@@ -29,7 +29,7 @@
 
 <script>
 import {computed, onMounted, ref, reactive} from 'vue'
-import { numSample, normaliseData } from '@/js/capture'
+import { numSample } from '@/js/capture'
 
 const d3 = Object.assign({}, require('d3-scale'), require('d3-shape'))
 const MARGIN = {top: 50, right: 15, bottom: 40, left: 40}
@@ -45,15 +45,6 @@ export default {
     default: null
   },
   setup (props) {
-    // const normalisedSensorData = computed(() => {
-    //   if (!props.sensorData || !props.sensorData.val.length) return []
-
-    //   return props.sensorData.val.map(dataStr => {
-    //     const [aX, aY, aZ, gX, gY, gZ] = dataStr.split(",").map(d => parseFloat(d))
-    //     return [normaliseAcc(aX), normaliseAcc(aY), normaliseAcc(aZ), normaliseGyro(gX), normaliseGyro(gY), normaliseGyro(gZ)]
-    //   })
-    // })
-
     const root = ref(null)
     const box = reactive({width: 0, height: 0})
 
@@ -88,7 +79,7 @@ export default {
 
       const ds = [[], [], [], [], [], []]
 
-      props.sensorData.val.map(dStr => normaliseData(dStr)).forEach((dAll, i) => {
+      props.sensorData.val.forEach((dAll, i) => {
         dAll.forEach((d, j) => {
           ds[j].push({x: i, y: d})
         })

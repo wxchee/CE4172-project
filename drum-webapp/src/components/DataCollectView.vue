@@ -1,13 +1,13 @@
 <template>
   <div class="data-collection-view">
-    <div class="settings">
+    <div class="settings" :class="{disabled: captureStarted}">
       <div class="settings__item">
         <span>{{numSample}} sample per capture</span>
-        <input type="range" :min="SAMPLE_RAMGE[0]" :max="SAMPLE_RAMGE[1]" v-model="numSample" />
+        <input type="range" :min="SAMPLE_RAMGE[0]" :max="SAMPLE_RAMGE[1]" v-model="numSample" @mouseup="() => updateDeviceParam()" />
       </div>
       <div class="settings__item">
         <span>threshold: {{threshold}}</span>
-        <input type="range" :min="THRESHOLD_RANGE[0]" :max="THRESHOLD_RANGE[1]" step="0.01" v-model="threshold" />
+        <input type="range" :min="THRESHOLD_RANGE[0]" :max="THRESHOLD_RANGE[1]" step="0.01" v-model="threshold" @mouseup="() => updateDeviceParam()" />
       </div>
       <div class="strength">
           <span>Current strength: {{ strength }}</span>
@@ -44,15 +44,13 @@
 
 <script>
 import { ref, computed, onBeforeUnmount } from 'vue'
-import { normaliseData } from '@/js/capture'
 import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
-
 import {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, th, capturedBuffer, captureSnaphot,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, remoteCapturingInProgress, captureStarted, numSample, th, capturedBuffer, captureSnaphot,
   selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 } from '@/js/capture'
-
+import { updateDeviceParam} from '@/js/device'
 export default {
   components: { GenericButton, DataVisual },
   setup() {
@@ -98,13 +96,15 @@ export default {
       return ''
     }
 
+
+
     const download = ref(null)
 
     const saveCapture = () => {
       pauseCapture()
       const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => {
-        return bf.val.map(bfStr => normaliseData(bfStr)).join('\r\n')
-        // return bf.val.join("\r\n")
+        // return bf.val.map(bfStr => normaliseData(bfStr)).join('\r\n')
+        return bf.val.join("\r\n")
       }).join("\r\n\n")
 
       const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'})
@@ -118,10 +118,10 @@ export default {
 
     return {
       numSample, threshold, SAMPLE_RAMGE, THRESHOLD_RANGE,
-      capturedBuffer, startCapture, resetCapture, captureStarted,
+      capturedBuffer, startCapture, resetCapture, captureStarted, remoteCapturingInProgress,
       selectedCapIndex, removeCapturedItem, hasAvailableDevices,
       strength, download, captureItemClass, getIndicatorStyle, getStrengthBarStyle, selectCapturedBuffer,
-      saveCapture, getSensorData, getCurrentView
+      saveCapture, getSensorData, getCurrentView, updateDeviceParam
     }
   }
   
@@ -142,6 +142,11 @@ export default {
     max-width: 500px;
     margin: 0 auto;
     font-size: 17px;
+
+    &.disabled {
+      pointer-events: none;
+      opacity: 0.4;
+    }
 
     .settings__item {
       display: flex;

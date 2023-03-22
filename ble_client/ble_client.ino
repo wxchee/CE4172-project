@@ -24,25 +24,25 @@ const char * device_name = "Drum_L";
 // const char * device_name = "Drum_R";
 
 BLEService service(service_uuid);
-BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 44);
+BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 45);
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
 
 static void onDataCollectMode();
 static void onDemoMode();
 
-void inferSamples();
-
-volatile uint8_t mode = 0; // 0: demo, 1: data collection
-volatile bool isSampling = false;
-const uint8_t numSample = 20;
+static volatile uint8_t mode = 0; // 0: demo, 1: data collection
+bool isSampling = false;
+static volatile uint8_t numSample = 20;
+const uint8_t MAX_POSSIBLE_NUM_SAMPLE = 50;
 uint8_t sampleRead = 0;
-float threshold = 0.19;
+static volatile float threshold = 0.16;
 float aX, aY, aZ, gX, gY, gZ;
-// float samples[numSample * 6];
+
 float bf[6];
 
 bool ledOn = false;
+static volatile bool canCapture = false;
 // float coolDown = 0;
 
 void setup() {
@@ -66,7 +66,7 @@ void setup() {
 
   // Add service
   BLE.addService(service);
-  gestureChar.setEventHandler(BLEWritten, onReceiveMsg);
+  gestureChar.setEventHandler (BLEWritten, onReceiveMsg);
 
   // start advertising 
   BLE.advertise();
@@ -113,12 +113,12 @@ void loop() {
   BLEDevice central = BLE.central();
 
   if (central) {
-    while (central.connected()) {
+    while (central.connected()) {      
       if (ledOn == 0) {  // turn on the LED to indicate the connection:
         digitalWrite(LEDR, HIGH);
         digitalWrite(LEDG, LOW);
         ledOn = 1;
-        Serial.print("Connected to central: "); Serial.println(central.address());
+        // Serial.print("Connected to central: "); Serial.println(central.address());
       } 
       // data collection mode
       if (mode == 1) { // data collection
@@ -140,18 +140,34 @@ void loop() {
 
 }
 
-
+static char valStr[6];
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
-  char indexStr[2] = {' ', '\0'};
-  strncpy(indexStr, (char *) characteristic.value(), 1);
-  mode = atoi(indexStr);
-  // Serial.println(String(mode) + ", " + indexStr);
+  valStr[0] = ' ';
+  valStr[1] = ' ';
+  valStr[2] = ' ';
+  valStr[3] = ' ';
+  valStr[4] = ' ';
+  valStr[5] = ' ';
+
+  strncpy(valStr, ((char *) characteristic.value()), 1);
+  mode = atoi(valStr);
+
+  strncpy(valStr, ((char *) characteristic.value()) + 1, 1);
+  canCapture = atoi(valStr) ? true : false;
+
+  strncpy(valStr, ((char *) characteristic.value()) + 2, 2);
+  numSample = atoi(valStr);
+
+  strncpy(valStr, ((char *) characteristic.value()) + 4, 5);
+  threshold = atof(valStr);
 }
 
 const char* GESTURES[] = {"l", "r", "u", "d", "ld", "rd"};
 const char* GESTURES_I[] = {"0", "1", "2", "3", "4", "5"};
 int maxI = -1;
 float maxCorr = 0;
+
+float dt = 0;
 static void onDemoMode () {
   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
     IMU.readAcceleration(aX, aY, aZ);
@@ -164,12 +180,13 @@ static void onDemoMode () {
     bf[3] = gX / 2000.0;
     bf[4] = gY / 2000.0;
     bf[5] = gZ / 2000.0;
-
+    
     if (!isSampling && ((abs(bf[0]) + abs(bf[1]) + abs(bf[2]) + abs(bf[3]) + abs(bf[4]) + abs(bf[5])) / 6 >= threshold)) {
       isSampling = true;
       sampleRead = 0;
       maxCorr = 0;
       maxI = -1;
+      dt = millis();
     }
 
     if (isSampling) {
@@ -203,11 +220,12 @@ static void onDemoMode () {
           }
         }
 
-        Serial.println(GESTURES[maxI]);
+        dt = millis() - dt;
+        Serial.println(String(GESTURES[maxI]) + "  "+ String(dt));
         
 
 
-        gestureChar.writeValue(GESTURES_I[maxI]);
+        gestureChar.writeValue("m0" + String(GESTURES_I[maxI]));
         // Serial.println("infer!");
       }
     }
@@ -215,23 +233,55 @@ static void onDemoMode () {
   }
 }
 
+bool isCollecting = false;
+float s[MAX_POSSIBLE_NUM_SAMPLE][6];
 
 static void onDataCollectMode () {
   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
     IMU.readAcceleration(aX, aY, aZ);
     IMU.readGyroscope(gX, gY, gZ);
-    // normalise accelerometer and gyroscope abs value to range: [0, 1]
-    // bf[0] = aX / 4.0;
-    // bf[1] = aY / 4.0;
-    // bf[2] = aZ / 4.0;
-    // bf[3] = gX / 2000.0;
-    // bf[4] = gY / 2000.0;
-    // bf[5] = gZ / 2000.0;
-    gestureChar.writeValue(String(aX,3)+","+String(aY,3)+","+String(aZ,3)+","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1));
+
+    bf[0] = aX / 4.0;
+    bf[1] = aY / 4.0;
+    bf[2] = aZ / 4.0;
+    bf[3] = gX / 2000.0;
+    bf[4] = gY / 2000.0;
+    bf[5] = gZ / 2000.0;
+
+    if (canCapture && !isCollecting && ((abs(bf[0]) + abs(bf[1]) + abs(bf[2]) + abs(bf[3]) + abs(bf[4]) + abs(bf[5])) / 6 >= threshold)) {
+      isCollecting = true;
+      sampleRead = 0;
+      maxCorr = 0;
+      maxI = -1;
+      dt = millis();
+      // gestureChar.writeValue("m1_0");
+      // Serial.println("start capture.");
+    }
+
+    if (isCollecting) {
+      s[sampleRead][0] = (aX + 4.0) / 8.0;
+      s[sampleRead][1] = (aY + 4.0) / 8.0;
+      s[sampleRead][2] = (aZ + 4.0) / 8.0;
+      s[sampleRead][3] = (gX + 2000.0) / 4000.0;
+      s[sampleRead][4] = (gY + 2000.0) / 4000.0;
+      s[sampleRead][5] = (gZ + 2000.0) / 4000.0;
+      sampleRead++;
+      // Serial.println("numSample " + String(numSample));
+      if (sampleRead == numSample) {
+        isCollecting = false;
+        for (int i=0; i<numSample;i++) {
+          // Serial.println("send collected " + String(s[i][0], 3) + " to server");
+          gestureChar.writeValue("m1_1" + String(s[i][0], 3)+","+String(s[i][1], 3)+","+String(s[i][2], 3)+","+String(s[i][3], 3)+","+String(s[i][4], 3)+","+String(s[i][5], 3));
+          delay(40);
+        }
+        gestureChar.writeValue("m1_2");
+        Serial.println("data collection completed in " + String(dt));        
+      }
+    } else {
+      gestureChar.writeValue("m1_0" + String(aX,3)+","+String(aY,3)+","+String(aZ,3)+","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1));
+      delay(25);
+    }
   }
 }
 
-void inferSamples() {
-
-}
 

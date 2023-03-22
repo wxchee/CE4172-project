@@ -68,7 +68,7 @@ const loadAudioDatas = () => {
       audioReady.value = true
       isAudioLoading.value = false
       console.log('audio data loaded')
-    }, 1000);
+    }, 300)
     
   })
 }

@@ -1,6 +1,6 @@
 import {reactive} from 'vue'
 import {mode} from '@/js/mode'
-import {onReceiveNewDataForDataCollect} from '@/js/capture'
+import {captureStarted, numSample, onReceiveNewDataForDataCollect, threshold} from '@/js/capture'
 import { onDrumHit } from './drum'
 
 const SERVICE_UUID = 'f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5'
@@ -37,10 +37,12 @@ const connectBTDevice = async cb => {
       devices[deviceType].name = device.name
       devices[deviceType].gatt = device.gatt
       devices[deviceType].gesChar = gestureChar
-      
-      updateServerMode(mode.index)
+
       if (cb) cb(true)
       console.log(device.name, 'connected.')
+
+      // updateDeviceMode()
+      updateDeviceParam()
     }
   } catch (err) {
     if (cb) cb(false)
@@ -58,11 +60,10 @@ const disconnectBTDevice = async d => {
 
 const onReceiveIncomingData = e => {
   const newVal = decoder.decode(e.target.value)
-  if (mode.index === 0) { // drum inference mode
-    console.log(newVal)
-    onDrumHit(parseInt(newVal))
-  } else { // index === 1: data collection mode
-    // console.log(newVal)
+  if (newVal.slice(0,2) === 'm0') {  // drum inference mode
+    // console.log(newVal[2])
+    onDrumHit(parseInt(newVal[2]))
+  } else {  // data collection mode
     onReceiveNewDataForDataCollect(newVal)
   }
 }
@@ -72,15 +73,21 @@ const getConnectedDevices = () => Object.keys(devices)
   .map(dk => devices[dk])
 
 
-const updateServerMode = mode => {
+const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleCount=numSample.value,th=threshold.value) => {
   let sentCount = 0
+  const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${parseFloat(th).toFixed(3)}`
+  console.log(formattedMsg)
   const connectedDevices = getConnectedDevices()
+
   connectedDevices.forEach(async d => {
-    await d.gesChar.writeValueWithResponse(encoder.encode(mode))
-    console.log('update mode [', mode, "] to ", d.name)
+    await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
+
+    console.log(`[-> ${d.name}]: mode(${m}) canCapture(${canCapture}) sampleCount(${sampleCount}) threshold(${th})`)
+
     sentCount++
   })
+
   return sentCount == connectedDevices.length
 }
 
-export {devices, connectBTDevice, disconnectBTDevice, getConnectedDevices, updateServerMode}
+export {devices, connectBTDevice, disconnectBTDevice, getConnectedDevices, updateDeviceParam}

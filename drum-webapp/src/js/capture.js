@@ -1,11 +1,11 @@
-import { getConnectedDevices } from "./device"
+import { getConnectedDevices, updateDeviceParam } from "./device"
 import {ref, reactive} from 'vue'
 const SAMPLE_RAMGE = [10, 50]
 const THRESHOLD_RANGE = [0, 0.6]
 let curSample = 0
 let canCapture = false
 
-const threshold = ref((THRESHOLD_RANGE[0] + (THRESHOLD_RANGE[1] - THRESHOLD_RANGE[0]) * 0.3).toFixed(3))
+const threshold = ref(0.16)
 let captureStarted = ref(false)
 const numSample = ref(20)
 const th = reactive({ aX: 0, aY: 0, aZ: 0, gX: 0, gY: 0, gZ: 0 })
@@ -13,39 +13,32 @@ const capturedBuffer = ref([])
 const selectedCapIndex = ref(-1)
 const captureSnaphot = reactive({t: 0, val: []})
 
+let dt = 0;
 let temp = []
 const onReceiveNewDataForDataCollect = async newVal => {
-  const [aX, aY, aZ, gX, gY, gZ] = newVal.split(",").map(val => parseFloat(val))
+  if (newVal[3] === '0') {
+    const [aX, aY, aZ, gX, gY, gZ] = newVal.slice(4, 46).split(",").map(val => parseFloat(val))
     th.aX = Math.abs(aX / 4.0)
     th.aY = Math.abs(aY / 4.0)
     th.aZ = Math.abs(aZ / 4.0)
     th.gX = Math.abs(gX / 2000.0)
     th.gY = Math.abs(gY / 2000.0)
     th.gZ = Math.abs(gZ / 2000.0)
-  
-    if (captureStarted.value) {
-      if (!canCapture && 
-          ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6 >= threshold.value)) {
-            canCapture = true
-            curSample = 0
-            temp = []
-        }
-
-        if (canCapture) {
-          temp.push(newVal)
-          curSample++
-
-          if (curSample === parseInt(numSample.value)) {
-            canCapture = false
-            curSample = 0
-            capturedBuffer.value.push({t: Date.now(), val: temp})
-          }
-        }
-    }
-
+    
     if (captureSnaphot.val.length >= numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value + 1)
     captureSnaphot.t = Date.now()
-    captureSnaphot.val.push(newVal)
+    captureSnaphot.val.push(normaliseData(newVal))
+
+  } else if (newVal[3] === '1') {
+    temp.push(newVal.slice(4, 45).split(',').map(d => parseFloat(d)))
+    
+  } else if (newVal[3] === '2') {
+    capturedBuffer.value.push({t: Date.now(), val: temp})
+
+    captureSnaphot.val.push(...temp)
+    console.log(capturedBuffer.value)
+    temp = []
+  }
     
 }
 
@@ -59,10 +52,11 @@ const normaliseData = rowStr => {
 
 const startCapture = () => {
   if (!getConnectedDevices().length) return
+
   captureStarted.value = !captureStarted.value
-  if(captureStarted.value) {
-    selectedCapIndex.value = -1
-  }
+  // updateDeviceParam(undefined, captureStarted.value)
+  updateDeviceParam()
+  if(captureStarted.value) selectedCapIndex.value = -1
 }
 
 const pauseCapture = () => {
@@ -95,5 +89,5 @@ const hasAvailableDevices = () => {
 
 export {
   SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, th, capturedBuffer, selectedCapIndex, captureSnaphot,
-  onReceiveNewDataForDataCollect, normaliseData, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
+  onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 }

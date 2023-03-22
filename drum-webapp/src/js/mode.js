@@ -1,5 +1,5 @@
 import { reactive } from "vue"
-import { updateServerMode } from "./device"
+import { updateDeviceParam } from "./device"
 
 const MODES = [{index: 0, label: 'Demo'}, {index: 1, label:'Data Collection'}]
 
@@ -11,7 +11,8 @@ const mode = reactive({
 const setMode = newMode => {
   mode.index = newMode.index
   mode.label = newMode.label
-  updateServerMode(newMode.index.toString())
+  // updateDeviceParam(newMode.index)
+  updateDeviceParam()
 }
 
 export {MODES, mode, setMode}
