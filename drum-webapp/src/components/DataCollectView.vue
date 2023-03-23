@@ -32,7 +32,7 @@ import GenericButton from './GenericButton.vue'
 import {
   threshold, captureStarted, capturedBuffer, captureSnaphot,
   selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices,
-  strength
+  magnitude
 } from '@/js/capture'
 import { updateDeviceParam} from '@/js/device'
 export default {
@@ -47,7 +47,7 @@ export default {
     }
 
     const getIndicatorStyle = () => {
-      const ratio = captureStarted.value ? Math.min(1, strength.value / threshold.value) : 0
+      const ratio = captureStarted.value ? Math.min(1, magnitude.value / threshold.value) : 0
       return { width: `calc(${ratio} * 100%)` }
     }
 
@@ -132,7 +132,7 @@ export default {
   //       margin: 0;
   //     }
   //   }
-  //   .strength {
+  //   .magnitude {
   //     display: flex;
   //     align-items: baseline;
   //     justify-content: space-between;

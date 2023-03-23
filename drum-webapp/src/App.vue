@@ -25,10 +25,10 @@
         <input type="range" :min="THRESHOLD_RANGE[0]" :max="THRESHOLD_RANGE[1]" step="0.01" v-model="threshold" @mouseup="() => updateDeviceParam()" />
       </div>
       
-      <div class="strength">
-          <span>Current strength: {{ strength }}</span>
+      <div class="magnitude">
+          <span>Magnitude: {{ magnitude }}</span>
           <div class="bar">
-            <span :style="getStrengthBarStyle()"></span>
+            <span :style="getMagnitudeBarStyle()"></span>
             <span class="mark" :style="{left: `calc(${threshold / THRESHOLD_RANGE[1] } * 100%)`}"></span>
           </div>
         </div>
@@ -48,7 +48,7 @@ import DemoView from './components/DemoView.vue'
 import DataCollectView from './components/DataCollectView.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import {MODES, mode, setMode} from '@/js/mode'
-import { strength, captureStarted, numSample, SAMPLE_RAMGE, threshold, THRESHOLD_RANGE } from './js/capture'
+import { magnitude, captureStarted, numSample, SAMPLE_RAMGE, threshold, THRESHOLD_RANGE } from './js/capture'
 
 export default {
   name: 'drum-web-app',
@@ -62,17 +62,17 @@ export default {
       }
     }
 
-    const getStrengthBarStyle = () => {
+    const getMagnitudeBarStyle = () => {
       return {
-        width: `calc(${ Math.min(1, strength.value / THRESHOLD_RANGE[1])} * 100%)`,
-        backgroundColor: strength.value > threshold.value ? '#42ff75' : 'red'
+        width: `calc(${ Math.min(1, magnitude.value / THRESHOLD_RANGE[1])} * 100%)`,
+        backgroundColor: magnitude.value > threshold.value ? '#42ff75' : 'red'
       }
     }
 
     return {
       mode, MODES, setMode, navbarOptionClass, loadAudioDatas, audioReady, isAudioLoading,
       captureStarted, numSample, SAMPLE_RAMGE, threshold, THRESHOLD_RANGE, updateDeviceParam,
-      strength, getStrengthBarStyle, cooldown, COOLDOWN_RANGE
+      magnitude, getMagnitudeBarStyle, cooldown, COOLDOWN_RANGE
     }
   }
 }
@@ -159,20 +159,30 @@ body {
 
       input {
         width: 50%;
-        height: 5px;
+        // height: 5px;
         margin: 0;
+        cursor: pointer;
+        opacity: 0.7;
+
+        &:hover {
+          opacity: 1;
+        }
       }
     }
-    .strength {
+    .magnitude {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
+      color: #FFFFFF;
+      & > span {
+        opacity: 0.5;
+      }
 
       .bar {
         position: relative;
         display: block;
         height: 4px;
-        background-color: #FFFFFF;
+        background-color: rgba(#FFFFFF, 0.5);
         width: 50%;
         overflow: hidden;
 
@@ -182,6 +192,7 @@ body {
           left: 0;
           height: 100%;
           background-color: red;
+          opacity: 1;
         }
 
         .mark {

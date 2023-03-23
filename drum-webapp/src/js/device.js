@@ -67,7 +67,7 @@ const onReceiveIncomingData = e => {
     // console.log(newVal[2])
     onDrumHit(parseInt(newVal[3]))
   } else {  // data collection mode
-    if (newVal[0] === '0') {
+    if (getConnectedDevices().length < 2 || newVal[0] === '0') {
       onReceiveNewDataForDataCollect(newVal.slice(1))
     }
   }
@@ -84,14 +84,17 @@ const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleC
   console.log(formattedMsg)
   const connectedDevices = getConnectedDevices()
 
-  connectedDevices.forEach(async d => {
-    await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
-
-    console.log(`[-> ${d.name}]: mode(${m}) capture(${canCapture}) data(${sampleCount}) cooldown(${coold}) threshold(${th})`)
-
-    sentCount++
-  })
-
+  try {
+    connectedDevices.forEach(async d => {
+      await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
+      console.log(`[-> ${d.name}]: mode(${m}) capture(${canCapture}) data(${sampleCount}) cooldown(${coold}) threshold(${th})`)
+  
+      sentCount++
+    })
+  } catch (err) {
+    console.warn('Error on updating device param. ', err)
+  }
+  
   return sentCount == connectedDevices.length
 }
 

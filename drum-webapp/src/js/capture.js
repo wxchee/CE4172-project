@@ -9,7 +9,7 @@ const threshold = ref(0.16)
 let captureStarted = ref(false)
 const numSample = ref(15)
 const th = reactive({ aX: 0, aY: 0, aZ: 0, gX: 0, gY: 0, gZ: 0 })
-const strength = computed(() => {
+const magnitude = computed(() => {
   return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
 })
 const capturedBuffer = ref([])
@@ -91,6 +91,6 @@ const hasAvailableDevices = () => {
 }
 
 export {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, strength, capturedBuffer, selectedCapIndex, captureSnaphot,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, magnitude, capturedBuffer, selectedCapIndex, captureSnaphot,
   onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 }
