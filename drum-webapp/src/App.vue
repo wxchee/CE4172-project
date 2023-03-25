@@ -12,11 +12,11 @@
         @click="() => setMode(mode)">{{ mode.label }}</div>
     </div>
     <div class="settings" :class="{disabled: captureStarted}">
-      <div class="settings__item">
+      <div class="settings__item" :style="{display: mode.index ? 'flex' : 'none'}">
         <span>{{numSample}} sample per capture</span>
         <input type="range" :min="SAMPLE_RAMGE[0]" :max="SAMPLE_RAMGE[1]" v-model="numSample" @mouseup="() => updateDeviceParam()" />
       </div>
-      <div class="settings__item">
+      <div class="settings__item" :style="{display: mode.index ? 'none' : 'flex'}">
         <span>Cooldown: {{cooldown}}</span>
         <input type="range" :min="COOLDOWN_RANGE[0]" :max="COOLDOWN_RANGE[1]" step="1" v-model="cooldown" @mouseup="() => updateDeviceParam()" />
       </div>
@@ -143,7 +143,7 @@ body {
     width: 100%;
     max-width: 500px;
     margin: 0 auto;
-    font-size: 17px;
+    // font-size: 17px;
     color: #FFFFFF;
 
     &.disabled {

@@ -8,7 +8,11 @@ let canCapture = false
 const threshold = ref(0.16)
 let captureStarted = ref(false)
 const numSample = ref(15)
-const th = reactive({ aX: 0, aY: 0, aZ: 0, gX: 0, gY: 0, gZ: 0 })
+const th = reactive({ 
+  aX: 0, aY: 0, aZ: 0,
+  gX: 0, gY: 0, gZ: 0,
+  // mX:0, mY: 0, mZ: 0 
+})
 const magnitude = computed(() => {
   return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
 })
@@ -20,7 +24,8 @@ let dt = 0;
 let temp = []
 const onReceiveNewDataForDataCollect = async newVal => {
   if (newVal[3] === '0') {
-    const [aX, aY, aZ, gX, gY, gZ] = newVal.slice(4, 46).split(",").map(val => parseFloat(val))
+    const [aX, aY, aZ, gX, gY, gZ] = newVal.slice(4).split(",").map(val => parseFloat(val))
+    
     th.aX = Math.abs(aX / 4.0)
     th.aY = Math.abs(aY / 4.0)
     th.aZ = Math.abs(aZ / 4.0)
@@ -33,7 +38,7 @@ const onReceiveNewDataForDataCollect = async newVal => {
     captureSnaphot.val.push(normaliseData(newVal))
 
   } else if (newVal[3] === '1') {
-    temp.push(newVal.slice(4, 45).split(',').map(d => parseFloat(d)))
+    temp.push(newVal.slice(4).split(',').map(d => parseFloat(d)))
     
   } else if (newVal[3] === '2') {
     capturedBuffer.value.push({t: Date.now(), val: temp})
@@ -45,12 +50,18 @@ const onReceiveNewDataForDataCollect = async newVal => {
     
 }
 
-const normaliseAcc = aVal => ((aVal + 4.0) / 8.0).toFixed(3)
-const normaliseGyro = gVal => ((gVal + 2000.0) / 4000.0).toFixed(3)
-
+const normaliseAcc = d => ((d + 4.0) / 8.0).toFixed(3)
+const normaliseGyro = d => ((d + 2000.0) / 4000.0).toFixed(3)
+// const normaliseMagneto = d => ((d + 400.0) / 800.0).toFixed(3)
 const normaliseData = rowStr => {
-  const [aX, aY, aZ, gX, gY, gZ] = rowStr.split(",").map(d => parseFloat(d))
-  return [normaliseAcc(aX), normaliseAcc(aY), normaliseAcc(aZ), normaliseGyro(gX), normaliseGyro(gY), normaliseGyro(gZ)]
+  const [aX, aY, aZ, gX, gY, gZ, 
+    // mX, mY, mZ
+  ] = rowStr.split(",").map(d => parseFloat(d))
+  return [
+    normaliseAcc(aX), normaliseAcc(aY), normaliseAcc(aZ),
+    normaliseGyro(gX), normaliseGyro(gY), normaliseGyro(gZ),
+    // normaliseMagneto(mX), normaliseMagneto(mY), normaliseMagneto(mZ)
+  ]
 }
 
 const startCapture = () => {

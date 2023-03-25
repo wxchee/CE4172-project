@@ -7,8 +7,8 @@ const SERVICE_UUID = 'f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5'
 const gesture_characteristic_UUID = '2f925c9d-0a5b-4217-8e63-2d527c9211c1'
 // const imu_characteristic_UUID = 'f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e'
 const devices = {
-  left: reactive({ name: '', gatt: null, gesChar: null, imuChar: null }),
-  right: reactive({ name: '', gatt: null, gesChar: null, imuChar: null })
+  left: reactive({ name: '', gatt: null, gesChar: null, readyToWrite: true }),
+  right: reactive({ name: '', gatt: null, gesChar: null, readyToWrite: true })
 }
 
 const cooldown = ref(40)
@@ -40,6 +40,7 @@ const connectBTDevice = async cb => {
       devices[deviceType].name = device.name
       devices[deviceType].gatt = device.gatt
       devices[deviceType].gesChar = gestureChar
+      devices[deviceType].readyToWrite = true
 
       if (cb) cb(true)
       console.log(device.name, 'connected.')
@@ -80,21 +81,30 @@ const getConnectedDevices = () => Object.keys(devices)
 
 const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleCount=numSample.value,th=threshold.value, coold=cooldown.value) => {
   let sentCount = 0
-  const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`
-  console.log(formattedMsg)
+  // const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`
+  const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`.substring(0, 20)
+
+  console.log(formattedMsg.length)
   const connectedDevices = getConnectedDevices()
 
-  try {
-    connectedDevices.forEach(async d => {
+  connectedDevices.forEach(async d => {
+    try {
+      // console.log(d.getChar)
+      if (!d.readyToWrite) {
+        console.warn('previous write operation still in progress, please update device params again later.')
+        return 
+      }
+      d.readyToWrite = false
       await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
+      d.readyToWrite = true
       console.log(`[-> ${d.name}]: mode(${m}) capture(${canCapture}) data(${sampleCount}) cooldown(${coold}) threshold(${th})`)
   
       sentCount++
-    })
-  } catch (err) {
-    console.warn('Error on updating device param. ', err)
-  }
-  
+    } catch (err) {
+      console.warn('Error on updating device param. ', err)
+    }
+  })
+    
   return sentCount == connectedDevices.length
 }
 

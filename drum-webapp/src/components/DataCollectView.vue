@@ -76,6 +76,7 @@ export default {
     const saveCapture = () => {
       pauseCapture()
       const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => {
+      // const csvContent = 'aX,aY,aZ,gX,gY,gZ,mX,mY,mZ\r\n' + capturedBuffer.value.map(bf => {
         // return bf.val.map(bfStr => normaliseData(bfStr)).join('\r\n')
         return bf.val.join("\r\n")
       }).join("\r\n\n")

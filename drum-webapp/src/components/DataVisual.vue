@@ -33,7 +33,7 @@ import { numSample } from '@/js/capture'
 
 const d3 = Object.assign({}, require('d3-scale'), require('d3-shape'))
 const MARGIN = {top: 50, right: 15, bottom: 40, left: 40}
-const colorScheme = ['#0352fc', '#3d7bff', '#7da7ff', '#ff5e00', '#ff8842', '#ffaf80']
+const colorScheme = ['#0352fc', '#3d7bff', '#7da7ff', '#ff5e00', '#ff8842', '#ffaf80', '#9602d1', '#c902e3','#fc03f4']
 
 const range = (start, stop, step, fp=0) => Array.from({length: Math.ceil((stop - start) / step) + 1}, (x, i) => (start + i * step).toFixed(fp))
 
@@ -78,6 +78,7 @@ export default {
       const line = d3.line().x(d => x(d.x)).y(d => y(d.y))
 
       const ds = [[], [], [], [], [], []]
+      // const ds = [[], [], [], [], [], [], [], [], []]
 
       props.sensorData.val.forEach((dAll, i) => {
         dAll.forEach((d, j) => {
