@@ -17,10 +17,14 @@ const magnitude = computed(() => {
   return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
 })
 const capturedBuffer = ref([])
-const selectedCapIndex = ref(-1)
+const filterCaptureTRef = ref({})
+const selectedCapTime = ref(-1)
 const captureSnaphot = reactive({t: 0, val: []})
 
-let dt = 0;
+const LIST_VIEWS = ['Main', 'Extracts']
+const captureListView = ref(LIST_VIEWS[0])
+
+
 let temp = []
 const onReceiveNewDataForDataCollect = async newVal => {
   if (newVal[3] === '0') {
@@ -41,7 +45,11 @@ const onReceiveNewDataForDataCollect = async newVal => {
     temp.push(newVal.slice(4).split(',').map(d => parseFloat(d)))
     
   } else if (newVal[3] === '2') {
-    capturedBuffer.value.push({t: Date.now(), val: temp})
+    const t = Date.now()
+    capturedBuffer.value.push({t: t, val: temp})
+    if (captureListView.value === LIST_VIEWS[1]) {
+      filterCaptureTRef.value[t] = true
+    }
 
     captureSnaphot.val.push(...temp)
     console.log(capturedBuffer.value)
@@ -70,7 +78,7 @@ const startCapture = () => {
   captureStarted.value = !captureStarted.value
   // updateDeviceParam(undefined, captureStarted.value)
   updateDeviceParam()
-  if(captureStarted.value) selectedCapIndex.value = -1
+  if(captureStarted.value) selectedCapTime.value = -1
 }
 
 const pauseCapture = () => {
@@ -81,17 +89,19 @@ const pauseCapture = () => {
 
 const resetCapture = () => {
   capturedBuffer.value = []
-  selectedCapIndex.value = -1
+  filterCaptureTRef.value = {}
+  selectedCapTime.value = -1
 
   canCapture = false
   curSample = 0
 }
 
-const removeCapturedItem = (capturedIndex, e) => {
-  capturedBuffer.value.splice(capturedIndex, 1)
-  if (selectedCapIndex.value == capturedIndex && selectedCapIndex.value === capturedBuffer.value.length) {
-    // console.log('match', selectedCapIndex.value, capturedIndex)
-    selectedCapIndex.value =  capturedIndex - 1
+const removeCapturedItem = (timestamp, e) => {
+  const index = capturedBuffer.value.findIndex(bf => bf.t === timestamp)
+  capturedBuffer.value.splice(index, 1)
+  if (selectedCapTime.value === timestamp) {
+    // console.log('match', selectedCapTime.value, capturedIndex)
+    selectedCapTime.value =  -1
   }
 
   if (e) e.stopPropagation()
@@ -102,6 +112,7 @@ const hasAvailableDevices = () => {
 }
 
 export {
-  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, magnitude, capturedBuffer, selectedCapIndex, captureSnaphot,
+  SAMPLE_RAMGE, THRESHOLD_RANGE, threshold, captureStarted, numSample, magnitude,
+  capturedBuffer, filterCaptureTRef, selectedCapTime, captureSnaphot, LIST_VIEWS, captureListView,
   onReceiveNewDataForDataCollect, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices
 }

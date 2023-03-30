@@ -54,7 +54,10 @@ export default {
   name: 'drum-web-app',
   components: { DemoView, DataCollectView, DevicePanel },
   setup () {
-    console.log(navigator.bluetooth)
+    if (!navigator.bluetooth)
+      console.warn('Please use a browser that supports web bluetooth api')
+    
+
     const navbarOptionClass = nMode => {
       return {
         'navbar__option': true,

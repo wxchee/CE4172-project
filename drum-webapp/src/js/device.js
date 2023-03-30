@@ -83,8 +83,6 @@ const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleC
   let sentCount = 0
   // const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`
   const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`.substring(0, 20)
-
-  console.log(formattedMsg.length)
   const connectedDevices = getConnectedDevices()
 
   connectedDevices.forEach(async d => {

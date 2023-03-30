@@ -25,9 +25,6 @@ export default {
 <style lang="scss">
 .radio-button {
   display: inline-flex;
-  flex-direction: column;
-  width: 200px;
-  padding: 10px 10px 0;
   background-color: rgba(white, 0.1);
   border-radius: 6px;
   box-sizing: border-box;
@@ -35,13 +32,11 @@ export default {
 
   .radio-button__option {
     display: inline-block;
-    padding: 8px 15px;
     background-color: rgba(black, 0.1);
     border-radius: 20px;
     border: 1px solid #ccc;
     cursor: pointer;
     color: #FFFFFF;
-    margin-bottom: 10px;
     
 
     &.checked {

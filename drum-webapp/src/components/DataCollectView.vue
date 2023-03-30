@@ -2,18 +2,32 @@
   <div class="data-collection-view">
     <div class="captures">
       <div class="captures__header">
-        <h4>Captured: {{ capturedBuffer.length }}</h4>
+        <h4>Captured: {{ captureListView === LIST_VIEWS[0] ? mainCapBF.length : filteredCapBF.length }}</h4>
         <GenericButton :class="{disabled: !hasAvailableDevices()}" @click="startCapture">{{captureStarted ? 'Pause' : 'Start'}}</GenericButton>
         <GenericButton :class="{disabled: !capturedBuffer.length}" @click="resetCapture">Clear</GenericButton>
-        <a class="downloadCSV" :class="{disabled: !capturedBuffer.length}" download="capture.csv" ref="download" @click="saveCapture">Save as .csv</a>
+        <a v-if="captureListView === LIST_VIEWS[0]" class="downloadCSV" :class="{disabled: !mainCapBF.length}" download="capture.csv" ref="download" @click="saveCapture">Save gesture as .csv</a>
+        <a v-else class="updateUnknownCSV" :class="{disabled: !filteredCapBF.length}" download="unknown.csv" ref="downloadFilterCapture" @click="saveFilteredCapture">Save extracted gesture as .csv</a>
       </div>
       <div class="captures__records">
         <div class="captures__records__wrapper">
-          <div :class="captureItemClass(i)" v-for="({t}, i) in capturedBuffer" :key="i" @click="() => selectCapturedBuffer(i)">
-            captured at: {{ t }}
-            <span class="delete" @click="e => removeCapturedItem(i, e)">&#10005;</span>
+          <RadioButton class="capture__records__view-toggle" v-model="captureListView" :options="LIST_VIEWS"></RadioButton>
+          <div class="capture__records__list" v-if="captureListView === LIST_VIEWS[0]">
+            <div :class="captureItemClass(t)" v-for="({t}, i) in mainCapBF" :key="i" @click="() => selectCapturedBuffer(t)">
+              captured at: <span class="time">{{ t }}</span>
+              <span class="delete" @click="e => removeCapturedItem(t, e)">&#10005;</span>
+              <span class="filter-capture" @click="e => setUnknownCapture(t, e)">&#8594;</span>
+            </div>
+            <div class="new-capture-indicator" :style="getIndicatorStyle()"></div>
           </div>
-          <div class="new-capture-indicator" :style="getIndicatorStyle()"></div>
+          <div v-else class="capture__records__list">
+            <div :class="captureItemClass(t)" v-for="({t}, i) in filteredCapBF" :key="i" @click="() => selectCapturedBuffer(t)">
+              captured at: <span class="time">{{ t }}</span>
+              <span class="delete" @click="e => removeCapturedItem(t, e)">&#10005;</span>
+              <span class="filter-capture" @click="e => setUnknownCapture(t, e)">&#8592;</span>
+            </div>
+            <div class="new-capture-indicator" :style="getIndicatorStyle()"></div>
+          </div>
+          
         </div>
         <div class="capture-visual">
           <h4>View: <span>{{getCurrentView()}}</span></h4>
@@ -26,24 +40,37 @@
 </template>
 
 <script>
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount, computed } from 'vue'
 import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
+import RadioButton from './RadioButton.vue'
 import {
   threshold, captureStarted, capturedBuffer, captureSnaphot,
-  selectedCapIndex, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices,
+  selectedCapTime, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices,
+  filterCaptureTRef, LIST_VIEWS, captureListView,
   magnitude
 } from '@/js/capture'
 import { updateDeviceParam} from '@/js/device'
+
 export default {
-  components: { GenericButton, DataVisual },
+  components: { GenericButton, RadioButton, DataVisual },
   setup() {
-    const captureItemClass = capturedIndex => {
+
+    const mainCapBF = computed(() => capturedBuffer.value.filter(bf => !filterCaptureTRef.value[bf.t]))
+    const filteredCapBF = computed(() => capturedBuffer.value.filter(bf => filterCaptureTRef.value[bf.t]))
+    
+    const captureItemClass = captureTime => {
       return {
         'captures__records__item': true,
-        'selected': capturedIndex === selectedCapIndex.value,
-        'disabled': captureStarted.value
+        'selected': captureTime === selectedCapTime.value,
+        'disabled': captureStarted.value,
+        'isUnknown': filterCaptureTRef.value[captureTime]
       }
+    }
+
+    const setUnknownCapture = (i, e) => {
+      filterCaptureTRef.value[i] = !filterCaptureTRef.value[i]
+      e.stopPropagation()
     }
 
     const getIndicatorStyle = () => {
@@ -51,19 +78,19 @@ export default {
       return { width: `calc(${ratio} * 100%)` }
     }
 
-    const selectCapturedBuffer = i => {
-      selectedCapIndex.value = selectedCapIndex.value === i ? -1 : i
+    const selectCapturedBuffer = t => {
+      selectedCapTime.value = selectedCapTime.value === t ? -1 : t
     }
 
     const getSensorData = () => {
-      if (selectedCapIndex.value >= 0) return capturedBuffer.value[selectedCapIndex.value]
+      if (selectedCapTime.value >= 0) return capturedBuffer.value.filter(bf => bf.t === selectedCapTime.value)[0]
       else if (hasAvailableDevices()) return captureSnaphot
 
       return null
     }
 
     const getCurrentView = () => {
-      if (selectedCapIndex.value >= 0) return 'captured at ' + capturedBuffer.value[selectedCapIndex.value].t
+      if (selectedCapTime.value >= 0) return 'captured at ' + selectedCapTime.value
       else if (hasAvailableDevices()) return 'live'
 
       return ''
@@ -75,7 +102,7 @@ export default {
 
     const saveCapture = () => {
       pauseCapture()
-      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + capturedBuffer.value.map(bf => {
+      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + mainCapBF.value.map(bf => {
       // const csvContent = 'aX,aY,aZ,gX,gY,gZ,mX,mY,mZ\r\n' + capturedBuffer.value.map(bf => {
         // return bf.val.map(bfStr => normaliseData(bfStr)).join('\r\n')
         return bf.val.join("\r\n")
@@ -84,6 +111,20 @@ export default {
       const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'})
       
       download.value.href = URL.createObjectURL(blob)
+
+
+    }
+
+    const downloadFilterCapture = ref(null)
+    
+    const saveFilteredCapture = () => {
+      const csvContent = 'aX,aY,aZ,gX,gY,gZ\r\n' + filteredCapBF.value.map(bf => {
+        return bf.val.join("\r\n")
+      }).join("\r\n\n")
+
+      const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'})
+      
+      downloadFilterCapture.value.href = URL.createObjectURL(blob)
     }
 
     onBeforeUnmount(() => {
@@ -91,10 +132,11 @@ export default {
     })
 
     return {
-      capturedBuffer, startCapture, resetCapture, captureStarted,
-      selectedCapIndex, removeCapturedItem, hasAvailableDevices,
-      download, captureItemClass, getIndicatorStyle, selectCapturedBuffer,
-      saveCapture, getSensorData, getCurrentView, updateDeviceParam
+      mainCapBF, filteredCapBF, capturedBuffer, startCapture, resetCapture, captureStarted,
+      selectedCapTime, removeCapturedItem, hasAvailableDevices,
+      download, downloadFilterCapture, captureItemClass, setUnknownCapture, getIndicatorStyle, selectCapturedBuffer,
+      saveCapture, saveFilteredCapture, getSensorData, getCurrentView, updateDeviceParam,
+      captureListView, LIST_VIEWS, filterCaptureTRef
     }
   }
   
@@ -107,60 +149,6 @@ export default {
   font-size: 18px;
   display: flex;
   flex-direction: column;
-
-  // .settings {
-  //   padding: 10px;
-  //   box-sizing: border-box;
-  //   width: 100%;
-  //   max-width: 500px;
-  //   margin: 0 auto;
-  //   font-size: 17px;
-
-  //   &.disabled {
-  //     pointer-events: none;
-  //     opacity: 0.4;
-  //   }
-
-  //   .settings__item {
-  //     display: flex;
-  //     align-items: center;
-  //     justify-content: space-between;
-  //     margin-bottom: 10px;
-
-  //     input {
-  //       width: 50%;
-  //       height: 5px;
-  //       margin: 0;
-  //     }
-  //   }
-  //   .magnitude {
-  //     display: flex;
-  //     align-items: baseline;
-  //     justify-content: space-between;
-
-  //     .bar {
-  //       position: relative;
-  //       display: block;
-  //       height: 4px;
-  //       background-color: #FFFFFF;
-  //       width: 50%;
-  //       overflow: hidden;
-
-  //       span {
-  //         position: absolute;
-  //         top: 0;
-  //         left: 0;
-  //         height: 100%;
-  //         background-color: red;
-  //       }
-
-  //       .mark {
-  //         width: 2px;
-  //         background-color: #333333;
-  //       }
-  //     }
-  //   }
-  // } // settings
 
   .captures {
     height: 100%;
@@ -185,7 +173,7 @@ export default {
         margin-right: 10px;
       }
 
-      a.downloadCSV {
+      a {
         color: #d1e1ff;
         text-decoration: none;
         border-bottom: 2px dotted #d1e1ff;
@@ -215,66 +203,113 @@ export default {
           background-color: #ffffff;
           overflow-y: auto;
 
-          & > * {
-            background-color: #e8e8e8;
+          .capture__records__view-toggle {
+            position: relative;
+            // display: grid;
+            // grid-template-columns: 1fr 1fr;
+            // width: 200px;
+            .radio-button__option {
+              background-color: transparent;
+              border: none;
+              color: #333333;
+              opacity: 0.5;
+              border-radius: 0;
+              padding: 5px 10px 3px;
 
-            &:nth-child(2n) {
-              background-color: #d5d5d5;
+              &.checked {
+                opacity: 1;
+                border-bottom: 2px solid #333333;
+                
+              }
+
+              &:hover {
+                opacity: 0.8;
+              }
             }
           }
 
-        .captures__records__item {
-            position: relative;
-            color: #333333;
-            user-select: none;
-            padding: 10px;
-            cursor: pointer;
-            box-sizing: border-box;
-            &.selected,
-            &.selected:hover {
-              background-color: #111111;
-              color: #FFFFFF;
+          .capture__records__list {
+            & > * {
+              background-color: #e8e8e8;
 
-            }
-
-            &.disabled {
-              // cursor: not-allowed;
-              pointer-events: none;
-              opacity: 0.5;
-            }
-
-            .delete {
-              display: none;
-              position: absolute;
-              right: 10px;
-              top: 50%;
-              transform: translateY(-50%);
-              transition: transform 0.2s;
-              cursor: pointer;
-            }
-
-            &.selected > .delete,
-            &:hover > .delete {
-              display: block;
-
-              &:hover {
-                transform: translateY(-50%) scale(1.2);
+              &:nth-child(2n) {
+                background-color: #d5d5d5;
               }
             }
 
-            &:hover {
-              background-color: #cbcbcb;
-            }
-          }
+          .captures__records__item {
+              position: relative;
+              color: #333333;
+              user-select: none;
+              padding: 10px;
+              cursor: pointer;
+              box-sizing: border-box;
+              &.selected,
+              &.selected:hover {
+                background-color: #111111;
+                color: #FFFFFF;
 
-          .new-capture-indicator {
-            color: #333333;
-            box-sizing: border-box;
-            pointer-events: none;
-            overflow-x: hidden;
-            height: 40px;
-          }
-      }
+              }
+
+              &.disabled {
+                // cursor: not-allowed;
+                pointer-events: none;
+                opacity: 0.5;
+              }
+
+              .time {
+                font-size: 13px;
+              }
+
+              .delete,
+              .filter-capture {
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                transition: transform 0.2s;
+                cursor: pointer;
+
+                &:hover {
+                  transform: translateY(-50%) scale(1.2);
+                }
+              }
+
+              .filter-capture:active {
+                color: red;
+              }
+
+              &:hover {
+                background-color: #cbcbcb;
+                
+              }
+
+              &.isUnknown .filter-capture {
+                color: red;
+
+                &:hover {
+                  color: grey;
+                }
+              }
+
+              .filter-capture {
+                right: 40px;
+                line-height: 1;
+                color: grey;
+              }
+            }
+
+            .new-capture-indicator {
+              color: #333333;
+              box-sizing: border-box;
+              pointer-events: none;
+              overflow-x: hidden;
+              height: 40px;
+            }
+          } // capture__records__list
+
+          
+      } // captures__records__wrapper
 
       .capture-visual {
         position: relative;
