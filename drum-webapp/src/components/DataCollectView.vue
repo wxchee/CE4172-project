@@ -1,5 +1,6 @@
 <template>
   <div class="data-collection-view">
+    <DrumSettings :showCooldown="false" :showTestResponseTime="false"></DrumSettings>
     <div class="captures">
       <div class="captures__header">
         <h4>Captured: {{ captureListView === LIST_VIEWS[0] ? mainCapBF.length : filteredCapBF.length }}</h4>
@@ -44,18 +45,19 @@ import { ref, onBeforeUnmount, computed } from 'vue'
 import DataVisual from './DataVisual.vue'
 import GenericButton from './GenericButton.vue'
 import RadioButton from './RadioButton.vue'
+import DrumSettings from './DrumSettings.vue'
+
 import {
-  threshold, captureStarted, capturedBuffer, captureSnaphot,
+  captureStarted, capturedBuffer, captureSnaphot,
   selectedCapTime, startCapture, pauseCapture, resetCapture, removeCapturedItem, hasAvailableDevices,
   filterCaptureTRef, LIST_VIEWS, captureListView,
-  magnitude
+  threshold, magnitude,
 } from '@/js/capture'
-import { updateDeviceParam} from '@/js/device'
+
 
 export default {
-  components: { GenericButton, RadioButton, DataVisual },
+  components: { DrumSettings, GenericButton, RadioButton, DataVisual },
   setup() {
-
     const mainCapBF = computed(() => capturedBuffer.value.filter(bf => !filterCaptureTRef.value[bf.t]))
     const filteredCapBF = computed(() => capturedBuffer.value.filter(bf => filterCaptureTRef.value[bf.t]))
     
@@ -96,8 +98,6 @@ export default {
       return ''
     }
 
-
-
     const download = ref(null)
 
     const saveCapture = () => {
@@ -135,7 +135,8 @@ export default {
       mainCapBF, filteredCapBF, capturedBuffer, startCapture, resetCapture, captureStarted,
       selectedCapTime, removeCapturedItem, hasAvailableDevices,
       download, downloadFilterCapture, captureItemClass, setUnknownCapture, getIndicatorStyle, selectCapturedBuffer,
-      saveCapture, saveFilteredCapture, getSensorData, getCurrentView, updateDeviceParam,
+      saveCapture, saveFilteredCapture, getSensorData, getCurrentView,
+      threshold, magnitude,
       captureListView, LIST_VIEWS, filterCaptureTRef
     }
   }

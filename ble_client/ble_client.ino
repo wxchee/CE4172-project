@@ -41,14 +41,17 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
 static void onDataCollectMode();
 static void onDemoMode();
+static void onInitialTestMode();
 
 // variables to be updated by request from webapp
-static volatile uint8_t mode = 0; // 0: demo, 1: data collection
+static volatile uint8_t view = 0; // 0: demo, 1: data collection
+static volatile uint8_t demoMode = 0; //0: fake inference, 1: real inference
 const uint8_t NUM_SAMPLE_MODEL = 15;
 static volatile uint8_t numSampleDataCollection = 15;
 static volatile float threshold = 0.16;
 static volatile bool canCapture = false;
 static volatile uint8_t cooldown = 40;
+static volatile uint16_t testResponseTime = 200;
 
 bool isSampling = false;
 const uint8_t MAX_POSSIBLE_NUM_SAMPLE = 50;
@@ -145,8 +148,11 @@ void loop() {
         Serial.print("Connected to central: "); Serial.println(central.address());
       } 
       
-      if (mode == 1) onDataCollectMode();
-      else onDemoMode();
+      if (view == 0) {
+        if (demoMode == 0) onInitialTestMode();
+        else onDemoMode();
+
+      } else onDataCollectMode();
 
     }
   }
@@ -170,18 +176,24 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
   valStr[5] = ' ';
 
   strncpy(valStr, ((char *) characteristic.value()), 1);
-  mode = atoi(valStr);
+  view = atoi(valStr);
 
   strncpy(valStr, ((char *) characteristic.value()) + 1, 1);
+  demoMode = atoi(valStr);
+
+  strncpy(valStr, ((char *) characteristic.value()) + 2, 1);
   canCapture = atoi(valStr) ? true : false;
 
-  strncpy(valStr, ((char *) characteristic.value()) + 2, 2);
+  strncpy(valStr, ((char *) characteristic.value()) + 3, 2);
   numSampleDataCollection = atoi(valStr);
 
-  strncpy(valStr, ((char *) characteristic.value()) + 4, 2);
+  strncpy(valStr, ((char *) characteristic.value()) + 5, 2);
   cooldown = atoi(valStr);
 
-  strncpy(valStr, ((char *) characteristic.value()) + 6, 5);
+  strncpy(valStr, ((char *) characteristic.value()) + 7, 3);
+  testResponseTime = atoi(valStr);
+
+  strncpy(valStr, ((char *) characteristic.value()) + 10, 4);
   threshold = atof(valStr);
 
   digitalWrite(LEDG, HIGH);
@@ -201,6 +213,9 @@ const char* GESTURES_R_I[] = {"5", "4", "7", "6"};
 int maxI = -1;
 float maxCorr = 0;
 
+float startT = 0;
+float samplingT;
+float inferenceT;
 static void onDemoMode () {
   
   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
@@ -220,6 +235,7 @@ static void onDemoMode () {
       sampleRead = 0;
       maxCorr = 0;
       maxI = -1;
+      startT = millis();
     }
 
     // if (USE_MAGNETOMETER && IMU.magneticFieldAvailable()) IMU.readMagneticField(mX, mY, mZ);
@@ -241,6 +257,8 @@ static void onDemoMode () {
 
       if (sampleRead == NUM_SAMPLE_MODEL) {
         isSampling = false;
+        samplingT = millis() - startT;
+        startT = millis();
 
         // inference
         TfLiteStatus invoke_status = interpreter->Invoke();
@@ -248,6 +266,8 @@ static void onDemoMode () {
           MicroPrintf("Invoke failed");
           return;
         }
+        inferenceT = millis() - startT;
+        
         for (int i = 0; i < sizeof(GESTURES_L) / sizeof(GESTURES_L[0]); i++) {
           // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
 
@@ -265,22 +285,41 @@ static void onDemoMode () {
         }
         
         
-        
-        
-
         // cooldown...
         delay(cooldown);
       }
-    } else {
-      gestureChar.writeValue(
-        String(device_id) + "m1_0"
-        +String(aX,3)+","+String(aY,3)+","+String(aZ,3)
-        +","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1)
-        // + USE_MAGNETOMETER ? (","+String(mX, 1)+","+String(mY, 1)+","+String(mZ, 1)) : ""
-      );
-      delay(25);
     }
+    // else {
+    //   gestureChar.writeValue(
+    //     String(device_id) + "m1_0"
+    //     +String(aX,3)+","+String(aY,3)+","+String(aZ,3)
+    //     +","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1)
+    //     // + USE_MAGNETOMETER ? (","+String(mX, 1)+","+String(mY, 1)+","+String(mZ, 1)) : ""
+    //   );
+    //   delay(25);
+    // }
 
+  }
+}
+
+static void onInitialTestMode() {
+  if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
+    IMU.readAcceleration(aX, aY, aZ);
+    IMU.readGyroscope(gX, gY, gZ);
+    
+    // normalise accelerometer and gyroscope abs value to range: [-1, 1]
+    th[0] = aX / 4.0;
+    th[1] = aY / 4.0;
+    th[2] = aZ / 4.0;
+    th[3] = gX / 2000.0;
+    th[4] = gY / 2000.0;
+    th[5] = gZ / 2000.0;
+    
+    if ((abs(th[0]) + abs(th[1]) + abs(th[2]) + abs(th[3]) + abs(th[4]) + abs(th[5])) / 6 >= threshold) {
+      delay(testResponseTime);
+      gestureChar.writeValue(String(device_id) + "m0" + String(3));
+      delay(cooldown);
+    }
   }
 }
 
@@ -339,7 +378,7 @@ static void onDataCollectMode () {
         }
         gestureChar.writeValue(String(device_id) + "m1_2");
 
-        Serial.println("data collection completed in " + String(millis() - dt));        
+        Serial.println("data collection completed");        
       }
     } else {
       gestureChar.writeValue(
@@ -352,5 +391,4 @@ static void onDataCollectMode () {
     }
   }
 }
-
 

@@ -1,7 +1,7 @@
 import { getConnectedDevices, updateDeviceParam } from "./device"
 import {ref, reactive, computed} from 'vue'
 const SAMPLE_RAMGE = [10, 50]
-const THRESHOLD_RANGE = [0, 0.6]
+const THRESHOLD_RANGE = [0.1, 0.4]
 let curSample = 0
 let canCapture = false
 
@@ -88,9 +88,17 @@ const pauseCapture = () => {
 }
 
 const resetCapture = () => {
-  capturedBuffer.value = []
-  filterCaptureTRef.value = {}
-  selectedCapTime.value = -1
+  if (captureListView.value === LIST_VIEWS[0]) { // main view
+    capturedBuffer.value = capturedBuffer.value.filter(bf => filterCaptureTRef.value[bf.t])
+    if (!filterCaptureTRef.value[selectedCapTime.value]) selectedCapTime.value = -1
+  } else { // extract view
+    capturedBuffer.value = capturedBuffer.value.filter(bf => !filterCaptureTRef.value[bf.t])
+    if (filterCaptureTRef.value[selectedCapTime.value]) selectedCapTime.value = -1
+    filterCaptureTRef.value = {}
+  }
+  // capturedBuffer.value = []
+  // filterCaptureTRef.value = {}
+  // selectedCapTime.value = -1
 
   canCapture = false
   curSample = 0

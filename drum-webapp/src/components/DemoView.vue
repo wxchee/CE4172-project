@@ -1,5 +1,7 @@
 <template>
   <div class="demo-view" >
+    <DrumSettings :showMagnitude="false" :showNumSample="false"></DrumSettings>
+    <ToggleButton :labels="DEMO_VIEWS" v-model="demoMode"></ToggleButton>
     <DrumVisual></DrumVisual>
     <div class="option">
       <div class="option-content">
@@ -12,16 +14,23 @@
 </template>
 
 <script>
+import { ref } from 'vue'
 import RadioButton from '@/components/RadioButton.vue'
 import DrumVisual from '@/components/DrumVisual.vue'
-
+import DrumSettings from './DrumSettings.vue'
+import ToggleButton from './ToggleButton.vue'
 import {drumType, DRUM_TYPES} from '@/js/drum'
 
+const DEMO_VIEWS = ['Test response', 'Inference mode']
+const demoMode = ref(DEMO_VIEWS[0])
+
+export {demoMode, DEMO_VIEWS}
+
 export default {
-  components: {DrumVisual, RadioButton},
+  components: { DrumSettings, DrumVisual, RadioButton, ToggleButton },
   setup () {
     
-    return {drumType, DRUM_TYPES}
+    return {drumType, DRUM_TYPES, demoMode, DEMO_VIEWS}
   }
 }
 </script>

@@ -1,5 +1,7 @@
 import {reactive, ref} from 'vue'
-import {mode} from '@/js/mode'
+import {view} from '@/js/view'
+import {demoMode, DEMO_VIEWS} from '@/components/DemoView.vue'
+
 import {captureStarted, numSample, onReceiveNewDataForDataCollect, threshold} from '@/js/capture'
 import { onDrumHit } from './drum'
 
@@ -13,6 +15,9 @@ const devices = {
 
 const cooldown = ref(40)
 const COOLDOWN_RANGE = [20, 99]
+
+const testResponseTime = ref(200)
+const TEST_RESPONSE_TIME_RANGE = [100, 900]
 
 const encoder = new TextEncoder('utf-8')
 const decoder = new TextDecoder('utf-8')
@@ -64,10 +69,10 @@ const disconnectBTDevice = async d => {
 
 const onReceiveIncomingData = e => {
   const newVal = decoder.decode(e.target.value)
-  if (newVal.slice(1,3) === 'm0') {  // drum inference mode
+  if (newVal.slice(1,3) === 'm0') {  // drum inference view
     // console.log(newVal[2])
     onDrumHit(parseInt(newVal[3]))
-  } else {  // data collection mode
+  } else {  // data collection view
     if (getConnectedDevices().length < 2 || newVal[0] === '0') {
       onReceiveNewDataForDataCollect(newVal.slice(1))
     }
@@ -79,12 +84,24 @@ const getConnectedDevices = () => Object.keys(devices)
   .map(dk => devices[dk])
 
 
-const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleCount=numSample.value,th=threshold.value, coold=cooldown.value) => {
+const updateDeviceParam = (
+  v=view.index,
+  canCapture=captureStarted.value,
+  dm=demoMode.value,
+  sampleCount=numSample.value,
+  testRT=testResponseTime.value,
+  th=threshold.value,
+  coold=cooldown.value,
+  ) => {
   let sentCount = 0
   // const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`
-  const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`.substring(0, 20)
+  const dmStr = dm === DEMO_VIEWS[0] ? 0 : 1
+  const canCaptureStr = canCapture ? 1 : 0
+  // const cooldStr = (coold.toString().length < 3 ? '0' : '') + coold.toString()
+  const cooldStr = coold
+  const formattedMsg = `${v}${dmStr}${canCaptureStr}${sampleCount}${cooldStr}${testRT}${parseFloat(th).toFixed(2)}`.substring(0, 20)
   const connectedDevices = getConnectedDevices()
-
+    console.log(formattedMsg)
   connectedDevices.forEach(async d => {
     try {
       // console.log(d.getChar)
@@ -95,7 +112,7 @@ const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleC
       d.readyToWrite = false
       await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
       d.readyToWrite = true
-      console.log(`[-> ${d.name}]: mode(${m}) capture(${canCapture}) data(${sampleCount}) cooldown(${coold}) threshold(${th})`)
+      console.log(`[-> ${d.name}]: view(${v}) demoMode(${dmStr}) capture(${canCaptureStr}) data(${sampleCount}) cooldown(${cooldStr}) test response time(${testRT}) threshold(${th})`)
   
       sentCount++
     } catch (err) {
@@ -106,4 +123,8 @@ const updateDeviceParam = (m=mode.index, canCapture=captureStarted.value,sampleC
   return sentCount == connectedDevices.length
 }
 
-export {devices, connectBTDevice, disconnectBTDevice, getConnectedDevices, updateDeviceParam, cooldown, COOLDOWN_RANGE}
+export {
+  devices, connectBTDevice, disconnectBTDevice, getConnectedDevices, updateDeviceParam,
+  cooldown, COOLDOWN_RANGE,
+  testResponseTime, TEST_RESPONSE_TIME_RANGE
+}
