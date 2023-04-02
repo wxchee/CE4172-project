@@ -37,7 +37,7 @@ const onReceiveNewDataForDataCollect = async newVal => {
     th.gY = Math.abs(gY / 2000.0)
     th.gZ = Math.abs(gZ / 2000.0)
     
-    if (captureSnaphot.val.length >= numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value + 1)
+    if (captureSnaphot.val.length > numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value + 1)
     captureSnaphot.t = Date.now()
     captureSnaphot.val.push(normaliseData(newVal))
 

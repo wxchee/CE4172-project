@@ -31,15 +31,15 @@ namespace {
   tflite::MicroInterpreter* interpreter = nullptr;
   TfLiteTensor* input = nullptr;
   TfLiteTensor* output = nullptr;
-  constexpr int kTensorArenaSize = 8 * 1024;
+  constexpr int kTensorArenaSize = 4 * 1024;
   uint8_t tensor_arena[kTensorArenaSize] __attribute__((aligned(16)));
 }  // namespace
 
 
 const char service_uuid[128] = "f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5";
-const char gesture_char_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
-
-const uint8_t device_id = 1;
+const char web2board_char_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
+const char board2web_char_uuid[128] = "f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e";
+const uint8_t device_id = 0;
 const char * device_name = device_id ? "DRUM_L" : "DRUM_R";
 
 BLEService service(service_uuid);
@@ -52,8 +52,9 @@ BLEService service(service_uuid);
 // mx_x 0.123,0.123,0.123, 0.123,0.123,0.123, 0.123,0.123,0.123 => 57
 // mx_x -4.123,-4.123,-4.123, -2000.1,-2000.1,-2000.1, -400.1,-400.1,-400.1 => 69
 
-BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 48);
-// BLEStringCharacteristic gestureChar(gesture_char_uuid, BLERead | BLEWrite | BLENotify, 46);
+BLEStringCharacteristic web2boardChar(web2board_char_uuid, BLEWrite | BLENotify, 15);
+BLEStringCharacteristic board2webChar(board2web_char_uuid, BLERead | BLENotify, 48);
+
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
 
@@ -100,11 +101,12 @@ void setup() {
   // Set advertised name and service:
   BLE.setLocalName(device_name);
   BLE.setAdvertisedService(service);
-  service.addCharacteristic(gestureChar);
+  service.addCharacteristic(web2boardChar);
+  service.addCharacteristic(board2webChar);
 
   // Add service
   BLE.addService(service);
-  gestureChar.setEventHandler (BLEWritten, onReceiveMsg);
+  web2boardChar.setEventHandler (BLEWritten, onReceiveMsg);
 
   // start advertising 
   BLE.advertise();
@@ -287,8 +289,8 @@ static void onDemoMode () {
         // Serial.println();
 
         responseT = millis() - startT;
-        if (maxCorr > 0.3 && maxI < 7) { // not unknown class, can send signal
-          gestureChar.writeValue(String(device_id) + "m0" + String(device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]));
+        if (maxCorr > 0.2 && maxI < 7) { // not unknown class, can send signal
+          board2webChar.writeValue(String(device_id) + "m0" + String(device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]));
         }
         
         Serial.println(
@@ -321,7 +323,7 @@ static void onInitialTestMode() {
     
     if ((abs(th[0]) + abs(th[1]) + abs(th[2]) + abs(th[3]) + abs(th[4]) + abs(th[5])) / 6 >= threshold) {
       delay(testResponseTime);
-      gestureChar.writeValue(String(device_id) + "m0" + String(3));
+      board2webChar.writeValue(String(device_id) + "m0" + String(3));
       delay(cooldown);
     }
   }
@@ -346,11 +348,7 @@ static void onDataCollectMode () {
       isCollecting = true;
       sampleRead = 0;
       startT = millis();
-      // gestureChar.writeValue("m1_0");
-      // Serial.println("start capture.");
     }
-
-    // if (USE_MAGNETOMETER && IMU.magneticFieldAvailable()) IMU.readMagneticField(mX, mY, mZ);
 
     if (isCollecting) {
       s[sampleRead][0] = (aX + 4.0) / 8.0;
@@ -360,12 +358,6 @@ static void onDataCollectMode () {
       s[sampleRead][4] = (gY + 2000.0) / 4000.0;
       s[sampleRead][5] = (gZ + 2000.0) / 4000.0;
 
-      // if (USE_MAGNETOMETER) {
-      //   s[sampleRead][6] = (mX + 400.0) / 800.0;
-      //   s[sampleRead][7] = (mY + 400.0) / 800.0;
-      //   s[sampleRead][8] = (mZ + 400.0) / 800.0;
-      // }
-      
       sampleRead++;
       // Serial.println("numSampleDataCollection " + String(numSampleDataCollection));
       if (sampleRead == numSampleDataCollection) {
@@ -377,23 +369,22 @@ static void onDataCollectMode () {
 
         for (int i=0; i<numSampleDataCollection;i++) {
           // Serial.println("send collected " + String(s[i][0], 3) + " to server");
-          gestureChar.writeValue(String(device_id) + "m1_1"
+          board2webChar.writeValue(String(device_id) + "m1_1"
           + String(s[i][0], 3)+","+String(s[i][1], 3)+","+String(s[i][2], 3)
           +","+String(s[i][3], 3)+","+String(s[i][4], 3)+","+String(s[i][5], 3)
-          // + USE_MAGNETOMETER ? (","+String(s[i][6], 3)+","+String(s[i][7], 3)+","+String(s[i][8], 3)) : ""
           );
+          
           delay(50);
         }
-        gestureChar.writeValue(String(device_id) + "m1_2");
+        board2webChar.writeValue(String(device_id) + "m1_2");
 
         Serial.println("data collection completed");        
       }
     } else {
-      gestureChar.writeValue(
+      board2webChar.writeValue(
         String(device_id) + "m1_0"
         + String(aX,3)+","+String(aY,3)+","+String(aZ,3)
         +","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1)
-        // + USE_MAGNETOMETER ? (","+String(mX, 1)+","+String(mY, 1)+","+String(mZ, 1)) + ""
       );
       delay(25);
     }

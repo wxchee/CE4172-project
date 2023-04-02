@@ -6,11 +6,12 @@ import {captureStarted, numSample, onReceiveNewDataForDataCollect, threshold} fr
 import { onDrumHit } from './drum'
 
 const SERVICE_UUID = 'f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5'
-const gesture_characteristic_UUID = '2f925c9d-0a5b-4217-8e63-2d527c9211c1'
-// const imu_characteristic_UUID = 'f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e'
+const web2board_characteristic_UUID = '2f925c9d-0a5b-4217-8e63-2d527c9211c1'
+const board2web_characteristic_UUID = 'f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e'
+
 const devices = {
-  left: reactive({ name: '', gatt: null, gesChar: null, readyToWrite: true }),
-  right: reactive({ name: '', gatt: null, gesChar: null, readyToWrite: true })
+  left: reactive({ name: '', gatt: null, web2boardChar: null, readyToWrite: true }),
+  right: reactive({ name: '', gatt: null, web2boardChar: null, readyToWrite: true })
 }
 
 const cooldown = ref(40)
@@ -23,7 +24,8 @@ const encoder = new TextEncoder('utf-8')
 const decoder = new TextDecoder('utf-8')
 
 const connectBTDevice = async cb => {
-  let gestureChar = null
+  let web2boardChar = null
+  let board2webChar = null
 
   try {
     let device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }]})
@@ -32,26 +34,34 @@ const connectBTDevice = async cb => {
     device.addEventListener('gattserverdisconnected', () => {
       console.log(device.name, ' disconnect')
       devices[deviceType].gatt = null
-      devices[deviceType].gesChar = null
+      devices[deviceType].web2boardChar = null
     })
 
     let gatt = await device.gatt.connect()
     let service = await gatt.getPrimaryService(SERVICE_UUID)
-    gestureChar = await service.getCharacteristic(gesture_characteristic_UUID)
-    if (gestureChar.properties.notify) {
-      gestureChar.addEventListener('characteristicvaluechanged', onReceiveIncomingData)
-      await gestureChar.startNotifications()
+    web2boardChar = await service.getCharacteristic(web2board_characteristic_UUID)
 
-      devices[deviceType].name = device.name
-      devices[deviceType].gatt = device.gatt
-      devices[deviceType].gesChar = gestureChar
-      devices[deviceType].readyToWrite = true
-
-      if (cb) cb(true)
-      console.log(device.name, 'connected.')
-
-      updateDeviceParam()
+    if (web2boardChar.properties.notify) {
+      await web2boardChar.startNotifications()
     }
+
+    board2webChar = await service.getCharacteristic(board2web_characteristic_UUID)
+
+    if (board2webChar.properties.notify) {
+      board2webChar.addEventListener('characteristicvaluechanged', onReceiveIncomingData)
+      await board2webChar.startNotifications()
+    }
+
+    devices[deviceType].name = device.name
+    devices[deviceType].gatt = device.gatt
+    devices[deviceType].web2boardChar = web2boardChar
+    devices[deviceType].readyToWrite = true
+
+    if (cb) cb(true)
+    console.log(device.name, 'connected.')
+
+    updateDeviceParam()
+
   } catch (err) {
     if (cb) cb(false)
     console.warn('Error occurs during BT device connection.', err)
@@ -110,7 +120,7 @@ const updateDeviceParam = (
         return 
       }
       d.readyToWrite = false
-      await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
+      await d.web2boardChar.writeValueWithResponse(encoder.encode(formattedMsg))
       d.readyToWrite = true
       console.log(`[-> ${d.name}]: view(${v}) demoMode(${dmStr}) capture(${canCaptureStr}) data(${sampleCountStr}) cooldown(${cooldStr}) test response time(${testRT}) threshold(${th})`)
   
