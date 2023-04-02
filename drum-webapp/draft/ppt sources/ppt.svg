@@ -11,11 +11,11 @@
 	.st5{opacity:0.28;fill:#FFFFFF;enable-background:new    ;}
 	.st6{fill:none;stroke:#292929;stroke-miterlimit:10;}
 	.st7{fill:#231F20;}
-	.st8{font-family:'MyriadPro-Regular';}
+	.st8{font-family:'ArialMT';}
 	.st9{font-size:30px;}
 </style>
 <g id="kick">
-	<path class="st0" d="M572.4,357.4H257.8V193.3l132.3-6.4c16.9-0.8,33.9-0.8,50.9,0l131.4,6.4V357.4z"/>
+	<path class="st0" d="M572.4,357.4H257.8V193.3l132.3-6.4c16.9-0.8,33.9-0.8,50.9,0l131.4,6.4L572.4,357.4L572.4,357.4z"/>
 	<ellipse id="highlight" class="st1" cx="415.3" cy="359.2" rx="157.1" ry="11.5"/>
 </g>
 <g id="drum4">
@@ -97,12 +97,12 @@
 	<circle class="st6" cx="181.8" cy="105.9" r="76.9"/>
 	<circle class="st6" cx="181.8" cy="105.9" r="25.7"/>
 </g>
-<text transform="matrix(1 0 0 1 62.7169 265.7366)" class="st7 st8 st9">Up (L)</text>
-<text transform="matrix(1 0 0 1 200.578 332.0304)" class="st7 st8 st9">Down(L)</text>
-<text transform="matrix(1 0 0 1 151.2967 71.8587)" class="st7 st8 st9">Left(L)</text>
-<text transform="matrix(1 0 0 1 287.6242 162.7805)" class="st7 st8 st9">Right(L)</text>
-<text transform="matrix(1 0 0 1 400.0203 380.0922)" class="st7 st8 st9">Up (R)</text>
-<text transform="matrix(1 0 0 1 593.4793 351.0056)" class="st7 st8 st9">Down(R)</text>
-<text transform="matrix(1 0 0 1 470.9444 153.0832)" class="st7 st8 st9">Left(R)</text>
-<text transform="matrix(1 0 0 1 643.9111 118.1524)" class="st7 st8 st9">Right(R)</text>
+<text transform="matrix(1 0 0 1 68.4513 353.1194)" class="st7 st8 st9">Side</text>
+<text transform="matrix(1 0 0 1 188.0028 332.0001)" class="st7 st8 st9">Down(L)</text>
+<text transform="matrix(1 0 0 1 138.65 72.1001)" class="st7 st8 st9">Top(L)</text>
+<text transform="matrix(1 0 0 1 287.6242 162.7805)" class="st7 st8 st9">Twist(L)</text>
+<text transform="matrix(1 0 0 1 365.4021 373.0004)" class="st7 st8 st9">Down(R)</text>
+<text transform="matrix(1 0 0 1 615.8209 364.5214)" class="st7 st8 st9">Side</text>
+<text transform="matrix(1 0 0 1 456.7462 159.3832)" class="st7 st8 st9">Twist(R)</text>
+<text transform="matrix(1 0 0 1 639.9902 118.1524)" class="st7 st8 st9">Top(R)</text>
 </svg>

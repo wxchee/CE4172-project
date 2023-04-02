@@ -20,9 +20,11 @@
 // #include "input_size/gesture_model_s10.h"
 // #include "input_size/gesture_model_s5.h"
 // #include "input_size/gesture_model_s2.h"
-#include "input_size/gesture_model_s1.h"
+// #include "input_size/gesture_model_s1.h"
 
-const uint8_t NUM_SAMPLE_MODEL = 1;
+#include "final/gesture_model_f_s15q.h"
+
+const uint8_t NUM_SAMPLE_MODEL = 15;
 
 namespace {
   const tflite::Model* model = nullptr;
@@ -39,7 +41,6 @@ const char gesture_char_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
 
 const uint8_t device_id = 1;
 const char * device_name = device_id ? "DRUM_L" : "DRUM_R";
-// const char * device_name = "Drum_R";
 
 BLEService service(service_uuid);
 // const bool USE_MAGNETOMETER = false;
@@ -75,14 +76,10 @@ const uint8_t MAX_POSSIBLE_NUM_SAMPLE = 50;
 uint8_t sampleRead = 0;
 
 float aX, aY, aZ, gX, gY, gZ;
-// , mX, mY, mZ;
-// float const m
 uint8_t const AXIS_COUNT = 6;
 float th[6];
 
 bool ledOn = false;
-
-// float coolDown = 0;
 float dt = 0;
 float prevMs = 0;
 
@@ -122,7 +119,7 @@ void setup() {
   digitalWrite(LEDB, HIGH);
 
   // ---------------------- Setup TFlite ---------------------------- //
-  model = tflite::GetModel(gesture_model);
+  model = tflite::GetModel(gesture_model_q);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     MicroPrintf(
       "Model provided is schema version %d not equal "
@@ -222,7 +219,6 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
 }
 
 const char* GESTURES[] = {"topl", "twistl", "side", "downl", "twistr", "topr", "downr","unknown"};
-// const char* GESTURES_R[] ={"rt", "lt", "d", "u"};
 
 int GESTURES_L_I[] = {0, 1, 2, 3, 4, 5, 6, 8};
 int GESTURES_R_I[] = {0, 1, 7, 3, 4, 5, 6, 8};
@@ -231,9 +227,10 @@ int maxI = -1;
 float maxCorr = 0;
 
 float startT = 0;
+float midT = 0;
 float samplingT;
 float inferenceT;
-
+float responseT;
 static void onDemoMode () {
   
   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
@@ -256,8 +253,6 @@ static void onDemoMode () {
       startT = millis();
     }
 
-    // if (USE_MAGNETOMETER && IMU.magneticFieldAvailable()) IMU.readMagneticField(mX, mY, mZ);
-
     if (isSampling) {
       input->data.f[sampleRead * AXIS_COUNT + 0] = (aX + 4.0) / 8.0;
       input->data.f[sampleRead * AXIS_COUNT + 1] = (aY + 4.0) / 8.0;
@@ -265,18 +260,13 @@ static void onDemoMode () {
       input->data.f[sampleRead * AXIS_COUNT + 3] = (gX + 2000.0) / 4000.0;
       input->data.f[sampleRead * AXIS_COUNT + 4] = (gY + 2000.0) / 4000.0;
       input->data.f[sampleRead * AXIS_COUNT + 5] = (gZ + 2000.0) / 4000.0;
-      // if (USE_MAGNETOMETER) {
-      //   input->data.f[sampleRead * AXIS_COUNT + 6] = (mX + 400.0) / 800.0;
-      //   input->data.f[sampleRead * AXIS_COUNT + 7] = (mY + 400.0) / 800.0;
-      //   input->data.f[sampleRead * AXIS_COUNT + 8] = (mZ + 400.0) / 800.0;
-      // }
 
       sampleRead++;
 
       if (sampleRead == NUM_SAMPLE_MODEL) {
         isSampling = false;
         samplingT = millis() - startT;
-        startT = millis();
+        midT = millis();
 
         // inference
         TfLiteStatus invoke_status = interpreter->Invoke();
@@ -284,7 +274,7 @@ static void onDemoMode () {
           MicroPrintf("Invoke failed");
           return;
         }
-        inferenceT = millis() - startT;
+        inferenceT = millis() - midT;
         
         for (int i = 0; i < sizeof(GESTURES) / sizeof(GESTURES[0]); i++) {
           // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
@@ -296,26 +286,22 @@ static void onDemoMode () {
         }
         // Serial.println();
 
-        if (maxI < 7) { // not unknown class, can send signal
+        responseT = millis() - startT;
+        if (maxCorr > 0.3 && maxI < 7) { // not unknown class, can send signal
           gestureChar.writeValue(String(device_id) + "m0" + String(device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]));
         }
         
-        Serial.println(String(device_id ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]]) + "("+String(maxCorr)+"), inference time: " + String(inferenceT) + "ms. sample time: " + String(samplingT));
+        Serial.println(
+          String(device_id ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]]) + "("+String(maxCorr)+
+          "), inference: "+ String(inferenceT) +
+          "ms. sampling: " + String(samplingT) + 
+          "ms. overall response: " + String(responseT) + "ms.");
         
         
         // cooldown...
         delay(cooldown);
       }
     }
-    // else {
-    //   gestureChar.writeValue(
-    //     String(device_id) + "m1_0"
-    //     +String(aX,3)+","+String(aY,3)+","+String(aZ,3)
-    //     +","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1)
-    //     // + USE_MAGNETOMETER ? (","+String(mX, 1)+","+String(mY, 1)+","+String(mZ, 1)) : ""
-    //   );
-    //   delay(25);
-    // }
 
   }
 }
