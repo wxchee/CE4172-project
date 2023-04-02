@@ -1,6 +1,6 @@
 <template>
-  <div class="drum-visual" :class="{[drumType]: true}">
-    <svg class="drum-visual-svg" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 794.61898 442.6218">
+  <div class="drum-visual" >
+    <svg :class="{[drumType]: true}" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 794.61898 442.6218">
       <g id="kick">
         <path d="M574.57764,389.40736H260.0344V225.27978l132.31408-6.4185q25.40964-1.23261,50.85273.00736l131.37643,6.41114Z" transform="translate(-2.19753 -31.99738)" fill="#4d1414"/>
         <ellipse :class="hitClass(6)" @click="() => onDrumHit(6)" id="highlight" cx="415.28721" cy="359.1808" rx="157.0929" ry="11.54992" fill="#ccc"/>
@@ -70,14 +70,13 @@ export default {
 .drum-visual {
   position: relative;
   
-  .drum-visual-svg {
+  svg {
     position: absolute;
-    top: 50%;
+    top: 0;
     left: 50%;
-    transform: translate(-50%, -50%);
-    display: block;
+    transform: translateX(-50%);
     width: 100%;
-    max-width: 600px;
+    height: 100%;
     
     * {pointer-events: none;}
 
@@ -95,7 +94,7 @@ export default {
     }
   }
 
-  &.analog {
+  .analog {
     [id*="crash"] [id*="highlight"].hit,
     [id*="drum"] [id*="highlight"].hit,
     #kick #highlight.hit { fill: #80dbff; }
@@ -109,7 +108,7 @@ export default {
     #kick #highlight { fill: #FFFFFF }
   }
   
-  &.latin {
+  .latin {
     [id*="crash"] [id*="highlight"].hit,
     [id*="drum"] [id*="highlight"].hit,
     #kick #highlight.hit { fill: #fe4444; }

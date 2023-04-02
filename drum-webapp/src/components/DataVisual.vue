@@ -1,7 +1,13 @@
 <template>
   <div class="data-visual">
     <svg ref="root" width="100%" height="100%">
-      <path v-for="({color, d}, i) in paths" :key="i" :d="d" fill="none" :stroke="color" stroke-width="1"/>
+      <template v-if="sensorData && sensorData.val[0] && sensorData.val[0].length === 1">
+        <text>test</text>
+      </template>
+      <template v-else>
+        <path v-for="({color, d}, i) in paths" :key="i" :d="d" fill="none" :stroke="color" stroke-width="1"/>
+      </template>
+      
       
       <line v-bind="middleLineStyle()"/>
       <g class="tick-x">

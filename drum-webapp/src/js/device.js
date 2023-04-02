@@ -1,6 +1,6 @@
 import {reactive, ref} from 'vue'
 import {view} from '@/js/view'
-import {demoMode, DEMO_VIEWS} from '@/components/DemoView.vue'
+import {demoMode, DEMO_MODES} from '@/components/DemoView.vue'
 
 import {captureStarted, numSample, onReceiveNewDataForDataCollect, threshold} from '@/js/capture'
 import { onDrumHit } from './drum'
@@ -14,7 +14,7 @@ const devices = {
 }
 
 const cooldown = ref(40)
-const COOLDOWN_RANGE = [20, 99]
+const COOLDOWN_RANGE = [20, 200]
 
 const testResponseTime = ref(200)
 const TEST_RESPONSE_TIME_RANGE = [100, 900]
@@ -50,7 +50,6 @@ const connectBTDevice = async cb => {
       if (cb) cb(true)
       console.log(device.name, 'connected.')
 
-      // updateDeviceMode()
       updateDeviceParam()
     }
   } catch (err) {
@@ -95,11 +94,12 @@ const updateDeviceParam = (
   ) => {
   let sentCount = 0
   // const formattedMsg = `${m}${canCapture ? 1 : 0}${sampleCount}${coold}${parseFloat(th).toFixed(3)}`
-  const dmStr = dm === DEMO_VIEWS[0] ? 0 : 1
+  const dmStr = dm === DEMO_MODES[0] ? 0 : 1
   const canCaptureStr = canCapture ? 1 : 0
-  // const cooldStr = (coold.toString().length < 3 ? '0' : '') + coold.toString()
-  const cooldStr = coold
-  const formattedMsg = `${v}${dmStr}${canCaptureStr}${sampleCount}${cooldStr}${testRT}${parseFloat(th).toFixed(2)}`.substring(0, 20)
+  const cooldStr = (coold.toString().length < 3 ? '0' : '') + coold.toString()
+  // const cooldStr = coold
+  const sampleCountStr = (sampleCount.toString().length < 2 ? '0' : '') + sampleCount.toString()
+  const formattedMsg = `${v}${dmStr}${canCaptureStr}${sampleCountStr}${cooldStr}${testRT}${parseFloat(th).toFixed(2)}`.substring(0, 20)
   const connectedDevices = getConnectedDevices()
     console.log(formattedMsg)
   connectedDevices.forEach(async d => {
@@ -112,7 +112,7 @@ const updateDeviceParam = (
       d.readyToWrite = false
       await d.gesChar.writeValueWithResponse(encoder.encode(formattedMsg))
       d.readyToWrite = true
-      console.log(`[-> ${d.name}]: view(${v}) demoMode(${dmStr}) capture(${canCaptureStr}) data(${sampleCount}) cooldown(${cooldStr}) test response time(${testRT}) threshold(${th})`)
+      console.log(`[-> ${d.name}]: view(${v}) demoMode(${dmStr}) capture(${canCaptureStr}) data(${sampleCountStr}) cooldown(${cooldStr}) test response time(${testRT}) threshold(${th})`)
   
       sentCount++
     } catch (err) {

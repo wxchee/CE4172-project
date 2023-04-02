@@ -5,7 +5,24 @@
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
-#include "gesture_model_q.h"
+// #include "test_complexity/gesture_model_1.h"
+// #include "test_complexity/gesture_model_2.h"
+// #include "test_complexity/gesture_model_3.h"
+// #include "test_complexity/gesture_model_4.h"
+// #include "test_complexity/gesture_model_1q.h"
+// #include "test_complexity/gesture_model_2q.h"
+// #include "test_complexity/gesture_model_3q.h"
+// #include "test_complexity/gesture_model_4q.h"
+
+// #include "input_size/gesture_model_s30.h"
+// #include "input_size/gesture_model_s20.h"
+// #include "input_size/gesture_model_s15.h"
+// #include "input_size/gesture_model_s10.h"
+// #include "input_size/gesture_model_s5.h"
+// #include "input_size/gesture_model_s2.h"
+#include "input_size/gesture_model_s1.h"
+
+const uint8_t NUM_SAMPLE_MODEL = 1;
 
 namespace {
   const tflite::Model* model = nullptr;
@@ -46,7 +63,7 @@ static void onInitialTestMode();
 // variables to be updated by request from webapp
 static volatile uint8_t view = 0; // 0: demo, 1: data collection
 static volatile uint8_t demoMode = 0; //0: fake inference, 1: real inference
-const uint8_t NUM_SAMPLE_MODEL = 15;
+
 static volatile uint8_t numSampleDataCollection = 15;
 static volatile float threshold = 0.16;
 static volatile bool canCapture = false;
@@ -105,7 +122,7 @@ void setup() {
   digitalWrite(LEDB, HIGH);
 
   // ---------------------- Setup TFlite ---------------------------- //
-  model = tflite::GetModel(gesture_model_q);
+  model = tflite::GetModel(gesture_model);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     MicroPrintf(
       "Model provided is schema version %d not equal "
@@ -187,13 +204,13 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
   strncpy(valStr, ((char *) characteristic.value()) + 3, 2);
   numSampleDataCollection = atoi(valStr);
 
-  strncpy(valStr, ((char *) characteristic.value()) + 5, 2);
+  strncpy(valStr, ((char *) characteristic.value()) + 5, 3);
   cooldown = atoi(valStr);
 
-  strncpy(valStr, ((char *) characteristic.value()) + 7, 3);
+  strncpy(valStr, ((char *) characteristic.value()) + 8, 3);
   testResponseTime = atoi(valStr);
 
-  strncpy(valStr, ((char *) characteristic.value()) + 10, 4);
+  strncpy(valStr, ((char *) characteristic.value()) + 11, 4);
   threshold = atof(valStr);
 
   digitalWrite(LEDG, HIGH);
@@ -204,11 +221,11 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
 
 }
 
-const char* GESTURES_L[] = {"lt", "rt", "u", "d"};
-const char* GESTURES_R[] ={"rt", "lt", "d", "u"};
+const char* GESTURES[] = {"topl", "twistl", "side", "downl", "twistr", "topr", "downr","unknown"};
+// const char* GESTURES_R[] ={"rt", "lt", "d", "u"};
 
-const char* GESTURES_L_I[] = {"0", "1", "2", "3"};
-const char* GESTURES_R_I[] = {"5", "4", "7", "6"};
+int GESTURES_L_I[] = {0, 1, 2, 3, 4, 5, 6, 8};
+int GESTURES_R_I[] = {0, 1, 7, 3, 4, 5, 6, 8};
 
 int maxI = -1;
 float maxCorr = 0;
@@ -216,6 +233,7 @@ float maxCorr = 0;
 float startT = 0;
 float samplingT;
 float inferenceT;
+
 static void onDemoMode () {
   
   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
@@ -268,7 +286,7 @@ static void onDemoMode () {
         }
         inferenceT = millis() - startT;
         
-        for (int i = 0; i < sizeof(GESTURES_L) / sizeof(GESTURES_L[0]); i++) {
+        for (int i = 0; i < sizeof(GESTURES) / sizeof(GESTURES[0]); i++) {
           // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
 
           if (maxCorr < output->data.f[i]) {
@@ -276,13 +294,13 @@ static void onDemoMode () {
             maxCorr = output->data.f[i];
           }
         }
+        // Serial.println();
 
-        if (maxCorr > 0.5) {
+        if (maxI < 7) { // not unknown class, can send signal
           gestureChar.writeValue(String(device_id) + "m0" + String(device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]));
-          Serial.println(String(device_id ? GESTURES_L[maxI] : GESTURES_R[maxI]));
-        } else {
-          Serial.println("no class exceed min corr. max class: " + String(device_id ? GESTURES_L[maxI] : GESTURES_R[maxI]) + " " + String(maxCorr));
         }
+        
+        Serial.println(String(device_id ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]]) + "("+String(maxCorr)+"), inference time: " + String(inferenceT) + "ms. sample time: " + String(samplingT));
         
         
         // cooldown...
@@ -341,8 +359,7 @@ static void onDataCollectMode () {
     if (canCapture && !isCollecting && ((abs(th[0]) + abs(th[1]) + abs(th[2]) + abs(th[3]) + abs(th[4]) + abs(th[5])) / 6 >= threshold)) {
       isCollecting = true;
       sampleRead = 0;
-      maxCorr = 0;
-      maxI = -1;
+      startT = millis();
       // gestureChar.writeValue("m1_0");
       // Serial.println("start capture.");
     }
@@ -367,6 +384,11 @@ static void onDataCollectMode () {
       // Serial.println("numSampleDataCollection " + String(numSampleDataCollection));
       if (sampleRead == numSampleDataCollection) {
         isCollecting = false;
+        samplingT = millis() - startT;
+
+        startT = millis();
+        Serial.println(String(sampleRead) +" data point(s) collected in " + String(samplingT) + "ms.");
+
         for (int i=0; i<numSampleDataCollection;i++) {
           // Serial.println("send collected " + String(s[i][0], 3) + " to server");
           gestureChar.writeValue(String(device_id) + "m1_1"

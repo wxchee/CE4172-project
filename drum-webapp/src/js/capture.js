@@ -1,6 +1,6 @@
 import { getConnectedDevices, updateDeviceParam } from "./device"
 import {ref, reactive, computed} from 'vue'
-const SAMPLE_RAMGE = [10, 50]
+const SAMPLE_RAMGE = [5, 50]
 const THRESHOLD_RANGE = [0.1, 0.4]
 let curSample = 0
 let canCapture = false
