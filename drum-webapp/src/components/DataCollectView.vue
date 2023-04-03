@@ -147,7 +147,6 @@ export default {
 <style lang="scss">
 .data-collection-view {
   color: #FFFFFF;
-  font-size: 18px;
   display: flex;
   flex-direction: column;
 

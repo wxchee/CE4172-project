@@ -51,7 +51,7 @@ export default {
 $tt: 0.2s;
 body {
   font-family: sans-serif;
-  font-size: 20px;
+  font-size: 18px;
   padding: 0;
   margin: 0;
   background-color: #000000;
@@ -87,6 +87,7 @@ body {
     gap: 30px;
     padding: 10px;
     box-sizing: border-box;
+    font-size: 21px;
 
 
     & > * {

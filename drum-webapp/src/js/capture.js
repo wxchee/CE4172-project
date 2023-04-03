@@ -1,7 +1,7 @@
 import { getConnectedDevices, updateDeviceParam } from "./device"
 import {ref, reactive, computed} from 'vue'
 const SAMPLE_RAMGE = [5, 50]
-const THRESHOLD_RANGE = [0.1, 0.4]
+const THRESHOLD_RANGE = [0.1, 0.5]
 let curSample = 0
 let canCapture = false
 
@@ -37,7 +37,7 @@ const onReceiveNewDataForDataCollect = async newVal => {
     th.gY = Math.abs(gY / 2000.0)
     th.gZ = Math.abs(gZ / 2000.0)
     
-    if (captureSnaphot.val.length > numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value + 1)
+    if (captureSnaphot.val.length >= numSample.value) captureSnaphot.val.splice(0, captureSnaphot.val.length - numSample.value + 1)
     captureSnaphot.t = Date.now()
     captureSnaphot.val.push(normaliseData(newVal))
 

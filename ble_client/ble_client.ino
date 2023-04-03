@@ -16,13 +16,14 @@
 
 // #include "input_size/gesture_model_s30.h"
 // #include "input_size/gesture_model_s20.h"
-// #include "input_size/gesture_model_s15.h"
-// #include "input_size/gesture_model_s10.h"
+// #include "input_size/gesture_model_s15q.h"
+// #include "input_size/gesture_model_s10q.h"
 // #include "input_size/gesture_model_s5.h"
 // #include "input_size/gesture_model_s2.h"
 // #include "input_size/gesture_model_s1.h"
 
 #include "final/gesture_model_f_s15q.h"
+
 
 const uint8_t NUM_SAMPLE_MODEL = 15;
 
@@ -31,7 +32,7 @@ namespace {
   tflite::MicroInterpreter* interpreter = nullptr;
   TfLiteTensor* input = nullptr;
   TfLiteTensor* output = nullptr;
-  constexpr int kTensorArenaSize = 4 * 1024;
+  constexpr int kTensorArenaSize = 8 * 1024;
   uint8_t tensor_arena[kTensorArenaSize] __attribute__((aligned(16)));
 }  // namespace
 
@@ -52,15 +53,14 @@ BLEService service(service_uuid);
 // mx_x 0.123,0.123,0.123, 0.123,0.123,0.123, 0.123,0.123,0.123 => 57
 // mx_x -4.123,-4.123,-4.123, -2000.1,-2000.1,-2000.1, -400.1,-400.1,-400.1 => 69
 
-BLEStringCharacteristic web2boardChar(web2board_char_uuid, BLEWrite | BLENotify, 15);
+BLEStringCharacteristic web2boardChar(web2board_char_uuid, BLEWrite | BLENotify, 16);
 BLEStringCharacteristic board2webChar(board2web_char_uuid, BLERead | BLENotify, 48);
 
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
 
-static void onDataCollectMode();
-static void onDemoMode();
-static void onInitialTestMode();
+static void onDataCollectMode(const bool trigger, float * aX, float * aY, float * aZ, float * gX, float * gY, float * gZ);
+static void onDemoMode(const bool trigger, float * aX, float * aY, float * aZ, float * gX, float * gY, float * gZ);
 
 // variables to be updated by request from webapp
 static volatile uint8_t view = 0; // 0: demo, 1: data collection
@@ -77,12 +77,14 @@ const uint8_t MAX_POSSIBLE_NUM_SAMPLE = 50;
 uint8_t sampleRead = 0;
 
 float aX, aY, aZ, gX, gY, gZ;
-uint8_t const AXIS_COUNT = 6;
-float th[6];
-
 bool ledOn = false;
-float dt = 0;
-float prevMs = 0;
+char buf[100];
+
+unsigned long delayCountDown = 0;
+#define __delay(duration) ({ \
+  delayCountDown = millis();\
+  while (millis() - delayCountDown < duration); \
+})
 
 void setup() {
   Serial.begin(9600);
@@ -147,13 +149,11 @@ void setup() {
   // Assign model input and output buffers (tensors) to pointers
   input = interpreter->input(0);
   output = interpreter->output(0);
-
-
 }
 
 void loop() {
   BLEDevice central = BLE.central();
-
+  float th;
   if (central) {
     while (central.connected()) {
       
@@ -164,21 +164,24 @@ void loop() {
         Serial.print("Connected to central: "); Serial.println(central.address());
       } 
       
-      if (view == 0) {
-        if (demoMode == 0) onInitialTestMode();
-        else onDemoMode();
+      if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
+        IMU.readAcceleration(aX, aY, aZ);
+        IMU.readGyroscope(gX, gY, gZ);
+        th = (abs(aX / 4.0) + abs(aY / 4.0) + abs(aZ / 4.0) + abs(gX / 2000.0) + abs(gY / 2000.0) + abs(gZ / 2000.0)) / 6.0;
 
-      } else onDataCollectMode();
-
+        if (view == 0) onDemoMode(th >= threshold, &aX, &aY, &aZ, &gX, &gY, &gZ);
+        else onDataCollectMode(th >= threshold, &aX, &aY, &aZ, &gX, &gY, &gZ);
+      }
     }
-  }
 
-  if (ledOn == 1) {
-    digitalWrite(LEDR, LOW);
-    digitalWrite(LEDG, HIGH);
-    ledOn = 0;
-    Serial.print("Disconnect: "); Serial.println(central.address());
-  } 
+    if (ledOn == 1) {
+      digitalWrite(LEDR, LOW);
+      digitalWrite(LEDG, HIGH);
+      ledOn = 0;
+      Serial.print("Disconnect: "); Serial.println(central.address());
+    } 
+
+  }
 
 }
 
@@ -214,7 +217,7 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
 
   digitalWrite(LEDG, HIGH);
   digitalWrite(LEDB, LOW);
-  delay(40);
+  __delay(40);
   digitalWrite(LEDG, LOW);
   digitalWrite(LEDB, HIGH);
 
@@ -228,166 +231,126 @@ int GESTURES_R_I[] = {0, 1, 7, 3, 4, 5, 6, 8};
 int maxI = -1;
 float maxCorr = 0;
 
-float startT = 0;
-float midT = 0;
-float samplingT;
-float inferenceT;
-float responseT;
-static void onDemoMode () {
-  
-  if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-    IMU.readAcceleration(aX, aY, aZ);
-    IMU.readGyroscope(gX, gY, gZ);
-    
-    // normalise accelerometer and gyroscope abs value to range: [-1, 1]
-    th[0] = aX / 4.0;
-    th[1] = aY / 4.0;
-    th[2] = aZ / 4.0;
-    th[3] = gX / 2000.0;
-    th[4] = gY / 2000.0;
-    th[5] = gZ / 2000.0;
-    
-    if (!isSampling && ((abs(th[0]) + abs(th[1]) + abs(th[2]) + abs(th[3]) + abs(th[4]) + abs(th[5])) / 6 >= threshold)) {
+unsigned long startT = 0;
+unsigned long midT = 0;
+unsigned long samplingT;
+unsigned long inferenceT;
+unsigned long responseT;
+
+
+static void onDemoMode (const bool trigger, float * aX, float * aY, float * aZ, float * gX, float * gY, float * gZ) {
+  if (!isSampling && trigger) {
+    if (demoMode == 0) {
+      __delay(testResponseTime);
+      snprintf(buf, 100, "%dm03", device_id);
+      board2webChar.writeValue(buf);
+      __delay(cooldown);
+
+    } else {
       isSampling = true;
       sampleRead = 0;
       maxCorr = 0;
       maxI = -1;
       startT = millis();
     }
-
-    if (isSampling) {
-      input->data.f[sampleRead * AXIS_COUNT + 0] = (aX + 4.0) / 8.0;
-      input->data.f[sampleRead * AXIS_COUNT + 1] = (aY + 4.0) / 8.0;
-      input->data.f[sampleRead * AXIS_COUNT + 2] = (aZ + 4.0) / 8.0;
-      input->data.f[sampleRead * AXIS_COUNT + 3] = (gX + 2000.0) / 4000.0;
-      input->data.f[sampleRead * AXIS_COUNT + 4] = (gY + 2000.0) / 4000.0;
-      input->data.f[sampleRead * AXIS_COUNT + 5] = (gZ + 2000.0) / 4000.0;
-
-      sampleRead++;
-
-      if (sampleRead == NUM_SAMPLE_MODEL) {
-        isSampling = false;
-        samplingT = millis() - startT;
-        midT = millis();
-
-        // inference
-        TfLiteStatus invoke_status = interpreter->Invoke();
-        if (invoke_status != kTfLiteOk) {
-          MicroPrintf("Invoke failed");
-          return;
-        }
-        inferenceT = millis() - midT;
-        
-        for (int i = 0; i < sizeof(GESTURES) / sizeof(GESTURES[0]); i++) {
-          // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
-
-          if (maxCorr < output->data.f[i]) {
-            maxI = i;
-            maxCorr = output->data.f[i];
-          }
-        }
-        // Serial.println();
-
-        responseT = millis() - startT;
-        if (maxCorr > 0.2 && maxI < 7) { // not unknown class, can send signal
-          board2webChar.writeValue(String(device_id) + "m0" + String(device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]));
-        }
-        
-        Serial.println(
-          String(device_id ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]]) + "("+String(maxCorr)+
-          "), inference: "+ String(inferenceT) +
-          "ms. sampling: " + String(samplingT) + 
-          "ms. overall response: " + String(responseT) + "ms.");
-        
-        
-        // cooldown...
-        delay(cooldown);
-      }
-    }
-
   }
-}
 
-static void onInitialTestMode() {
-  if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-    IMU.readAcceleration(aX, aY, aZ);
-    IMU.readGyroscope(gX, gY, gZ);
-    
-    // normalise accelerometer and gyroscope abs value to range: [-1, 1]
-    th[0] = aX / 4.0;
-    th[1] = aY / 4.0;
-    th[2] = aZ / 4.0;
-    th[3] = gX / 2000.0;
-    th[4] = gY / 2000.0;
-    th[5] = gZ / 2000.0;
-    
-    if ((abs(th[0]) + abs(th[1]) + abs(th[2]) + abs(th[3]) + abs(th[4]) + abs(th[5])) / 6 >= threshold) {
-      delay(testResponseTime);
-      board2webChar.writeValue(String(device_id) + "m0" + String(3));
-      delay(cooldown);
+  if (isSampling) {
+    input->data.f[sampleRead * 6] = (*aX + 4.0) / 8.0;
+    input->data.f[sampleRead * 6 + 1] = (*aY + 4.0) / 8.0;
+    input->data.f[sampleRead * 6 + 2] = (*aZ + 4.0) / 8.0;
+    input->data.f[sampleRead * 6 + 3] = (*gX + 2000.0) / 4000.0;
+    input->data.f[sampleRead * 6 + 4] = (*gY + 2000.0) / 4000.0;
+    input->data.f[sampleRead * 6 + 5] = (*gZ + 2000.0) / 4000.0;
+
+    sampleRead++;
+
+    if (sampleRead == NUM_SAMPLE_MODEL) {
+      isSampling = false;
+      samplingT = millis() - startT;
+      midT = millis();
+
+      // inference
+      TfLiteStatus invoke_status = interpreter->Invoke();
+      if (invoke_status != kTfLiteOk) {
+        MicroPrintf("Invoke failed");
+        return;
+      }
+      inferenceT = millis() - midT;
+      
+      for (int i = 0; i < sizeof(GESTURES) / sizeof(GESTURES[0]); i++) {
+        // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
+
+        if (maxCorr < output->data.f[i]) {
+          maxI = i;
+          maxCorr = output->data.f[i];
+        }
+      }
+      // Serial.println();
+
+      responseT = millis() - startT;
+      if (maxCorr > 0.2 && maxI < 7) { // not unknown class, can send signal
+        snprintf(buf, 100, "%dm0%d", device_id, device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]);
+        board2webChar.writeValue(buf);
+      }
+
+      snprintf(buf, 100, "%s(%.3f), infer:%.3fms sampling:%.3fms response:%.3fms", 
+        device_id ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]],
+        maxCorr, inferenceT, samplingT, responseT
+      );
+      Serial.println(buf);
+      
+      
+      // cooldown...
+      __delay(cooldown);
     }
   }
 }
 
 bool isCollecting = false;
-float s[MAX_POSSIBLE_NUM_SAMPLE][AXIS_COUNT];
+float s[MAX_POSSIBLE_NUM_SAMPLE * 6];
 
-static void onDataCollectMode () {
-  if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-    IMU.readAcceleration(aX, aY, aZ);
-    IMU.readGyroscope(gX, gY, gZ);
 
-    th[0] = aX / 4.0;
-    th[1] = aY / 4.0;
-    th[2] = aZ / 4.0;
-    th[3] = gX / 2000.0;
-    th[4] = gY / 2000.0;
-    th[5] = gZ / 2000.0;
+static void onDataCollectMode (const bool trigger, float * aX, float * aY, float * aZ, float * gX, float * gY, float * gZ) {
+  if (canCapture && !isCollecting && trigger) {
+    isCollecting = true;
+    sampleRead = 0;
+    startT = millis();
+  }
 
-    if (canCapture && !isCollecting && ((abs(th[0]) + abs(th[1]) + abs(th[2]) + abs(th[3]) + abs(th[4]) + abs(th[5])) / 6 >= threshold)) {
-      isCollecting = true;
-      sampleRead = 0;
+  if (isCollecting) {
+    s[sampleRead * 6] = (*aX + 4.0) / 8.0;
+    s[sampleRead * 6 + 1] = (*aY + 4.0) / 8.0;
+    s[sampleRead * 6 + 2] = (*aZ + 4.0) / 8.0;
+    s[sampleRead * 6 + 3] = (*gX + 2000.0) / 4000.0;
+    s[sampleRead * 6 + 4] = (*gY + 2000.0) / 4000.0;
+    s[sampleRead * 6 + 5] = (*gZ + 2000.0) / 4000.0;
+
+    sampleRead++;
+    // Serial.println("numSampleDataCollection " + String(numSampleDataCollection));
+    if (sampleRead == numSampleDataCollection) {
+      isCollecting = false;
+      samplingT = millis() - startT;
+
       startT = millis();
-    }
+      // Serial.println(String(sampleRead) +" data point(s) collected in " + String(samplingT) + "ms.");
 
-    if (isCollecting) {
-      s[sampleRead][0] = (aX + 4.0) / 8.0;
-      s[sampleRead][1] = (aY + 4.0) / 8.0;
-      s[sampleRead][2] = (aZ + 4.0) / 8.0;
-      s[sampleRead][3] = (gX + 2000.0) / 4000.0;
-      s[sampleRead][4] = (gY + 2000.0) / 4000.0;
-      s[sampleRead][5] = (gZ + 2000.0) / 4000.0;
-
-      sampleRead++;
-      // Serial.println("numSampleDataCollection " + String(numSampleDataCollection));
-      if (sampleRead == numSampleDataCollection) {
-        isCollecting = false;
-        samplingT = millis() - startT;
-
-        startT = millis();
-        Serial.println(String(sampleRead) +" data point(s) collected in " + String(samplingT) + "ms.");
-
-        for (int i=0; i<numSampleDataCollection;i++) {
-          // Serial.println("send collected " + String(s[i][0], 3) + " to server");
-          board2webChar.writeValue(String(device_id) + "m1_1"
-          + String(s[i][0], 3)+","+String(s[i][1], 3)+","+String(s[i][2], 3)
-          +","+String(s[i][3], 3)+","+String(s[i][4], 3)+","+String(s[i][5], 3)
-          );
-          
-          delay(50);
-        }
-        board2webChar.writeValue(String(device_id) + "m1_2");
-
-        Serial.println("data collection completed");        
+      for (int i=0; i<numSampleDataCollection;i++) {
+        // Serial.println("send collected " + String(s[i][0], 3) + " to server");
+        snprintf(buf, 100, "%dm1_1%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", device_id, s[i*6], s[i*6+1], s[i*6+2], s[i*6+3], s[i*6+4], s[i*6+5]);
+        board2webChar.writeValue(buf);
+        __delay(50);
       }
-    } else {
-      board2webChar.writeValue(
-        String(device_id) + "m1_0"
-        + String(aX,3)+","+String(aY,3)+","+String(aZ,3)
-        +","+String(gX, 1)+","+String(gY, 1)+","+String(gZ, 1)
-      );
-      delay(25);
+
+      snprintf(buf, 100, "%dm1_2", device_id);
+      board2webChar.writeValue(buf);
+
+      // Serial.println("data collection completed");        
     }
+  } else {
+    snprintf(buf, 100, "%dm1_0%.3f,%.3f,%.3f,%.1f,%.1f,%.1f", device_id, *aX, *aY, *aZ, *gX, *gY, *gZ);
+    board2webChar.writeValue(buf);
+    __delay(25);
   }
 }
 
