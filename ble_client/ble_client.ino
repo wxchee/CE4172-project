@@ -5,27 +5,23 @@
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
-// #include "test_complexity/gesture_model_1.h"
-// #include "test_complexity/gesture_model_2.h"
-// #include "test_complexity/gesture_model_3.h"
-// #include "test_complexity/gesture_model_4.h"
-// #include "test_complexity/gesture_model_1q.h"
-// #include "test_complexity/gesture_model_2q.h"
-// #include "test_complexity/gesture_model_3q.h"
-// #include "test_complexity/gesture_model_4q.h"
-
-// #include "input_size/gesture_model_s30.h"
-// #include "input_size/gesture_model_s20.h"
-// #include "input_size/gesture_model_s15q.h"
-// #include "input_size/gesture_model_s10q.h"
-// #include "input_size/gesture_model_s5.h"
-// #include "input_size/gesture_model_s2.h"
-// #include "input_size/gesture_model_s1.h"
 
 #include "final/gesture_model_f_s15q.h"
 
+#define NUM_SAMPLE_MODEL 15
+// mx_x 0.123,0.123,0.123, 0.123,0.123,0.123 => 39
+// mx_x -4.123,-4.123,-4.123, -2000.1,-2000.1,-2000.1 => 48
+#define READ_LENGTH 16
+#define WRITE_LENGTH 48
+#define BUF_LENGTH 100
 
-const uint8_t NUM_SAMPLE_MODEL = 15;
+#define DEVICE_ID 0 // 0: RIGHT 1: Left
+
+#define __set_LED(r, g, b) ({ \
+  digitalWrite(LEDR, r ? LOW : HIGH); \
+  digitalWrite(LEDG, g ? LOW : HIGH); \
+  digitalWrite(LEDB, b ? LOW : HIGH); \
+})
 
 namespace {
   const tflite::Model* model = nullptr;
@@ -40,21 +36,16 @@ namespace {
 const char service_uuid[128] = "f30c5d5f-ec5a-4c1d-94c5-46e35d810dc5";
 const char web2board_char_uuid[128] = "2f925c9d-0a5b-4217-8e63-2d527c9211c1";
 const char board2web_char_uuid[128] = "f8edf338-6bbd-4c3b-bf16-d8d2b6cdaa6e";
-const uint8_t device_id = 0;
-const char * device_name = device_id ? "DRUM_L" : "DRUM_R";
+// const uint8_t DEVICE_ID = 1;
+const char * device_name = DEVICE_ID ? "DRUM_L" : "DRUM_R";
 
 BLEService service(service_uuid);
-// const bool USE_MAGNETOMETER = false;
-// without magnetometer
-// mx_x 0.123,0.123,0.123, 0.123,0.123,0.123 => 39
-// mx_x -4.123,-4.123,-4.123, -2000.1,-2000.1,-2000.1 => 48
 
-// with magnetometer
-// mx_x 0.123,0.123,0.123, 0.123,0.123,0.123, 0.123,0.123,0.123 => 57
-// mx_x -4.123,-4.123,-4.123, -2000.1,-2000.1,-2000.1, -400.1,-400.1,-400.1 => 69
 
-BLEStringCharacteristic web2boardChar(web2board_char_uuid, BLEWrite | BLENotify, 16);
-BLEStringCharacteristic board2webChar(board2web_char_uuid, BLERead | BLENotify, 48);
+char buf[BUF_LENGTH];
+
+BLEStringCharacteristic web2boardChar(web2board_char_uuid, BLEWrite | BLENotify, READ_LENGTH);
+BLEStringCharacteristic board2webChar(board2web_char_uuid, BLERead | BLENotify, WRITE_LENGTH);
 
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic);
 
@@ -76,9 +67,8 @@ bool isSampling = false;
 const uint8_t MAX_POSSIBLE_NUM_SAMPLE = 50;
 uint8_t sampleRead = 0;
 
-float aX, aY, aZ, gX, gY, gZ;
 bool ledOn = false;
-char buf[100];
+
 
 unsigned long delayCountDown = 0;
 #define __delay(duration) ({ \
@@ -118,9 +108,7 @@ void setup() {
   pinMode(LEDR, OUTPUT);
   pinMode(LEDG, OUTPUT);
   pinMode(LEDB, OUTPUT);
-  digitalWrite(LEDR, LOW);
-  digitalWrite(LEDG, HIGH);
-  digitalWrite(LEDB, HIGH);
+  __set_LED(1, 0, 0);
 
   // ---------------------- Setup TFlite ---------------------------- //
   model = tflite::GetModel(gesture_model_q);
@@ -154,15 +142,18 @@ void setup() {
 void loop() {
   BLEDevice central = BLE.central();
   float th;
+  float aX, aY, aZ, gX, gY, gZ;
   if (central) {
     while (central.connected()) {
       
       if (ledOn == 0) {  // turn on the LED to indicate the connection:
-        digitalWrite(LEDR, HIGH);
-        digitalWrite(LEDG, LOW);
+        __set_LED(0, 1, 0);
         ledOn = 1;
         Serial.print("Connected to central: "); Serial.println(central.address());
-      } 
+      }
+
+      // snprintf(buf, 100, "view:%d demoM:%d canCap:%d sample:%d cooldown:%d res:%d th:%f", view, demoMode, canCapture, numSampleDataCollection, cooldown, testResponseTime, threshold);
+      // Serial.println(buf);
       
       if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
         IMU.readAcceleration(aX, aY, aZ);
@@ -175,8 +166,7 @@ void loop() {
     }
 
     if (ledOn == 1) {
-      digitalWrite(LEDR, LOW);
-      digitalWrite(LEDG, HIGH);
+      __set_LED(1, 0, 0);
       ledOn = 0;
       Serial.print("Disconnect: "); Serial.println(central.address());
     } 
@@ -187,40 +177,30 @@ void loop() {
 
 static char valStr[6];
 static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
-  valStr[0] = ' ';
-  valStr[1] = ' ';
-  valStr[2] = ' ';
-  valStr[3] = ' ';
-  valStr[4] = ' ';
-  valStr[5] = ' ';
-
-  strncpy(valStr, ((char *) characteristic.value()), 1);
+  snprintf(valStr, 2, "%s", (char *) characteristic.value());  // eg. 0
   view = atoi(valStr);
-
-  strncpy(valStr, ((char *) characteristic.value()) + 1, 1);
-  demoMode = atoi(valStr);
-
-  strncpy(valStr, ((char *) characteristic.value()) + 2, 1);
-  canCapture = atoi(valStr) ? true : false;
-
-  strncpy(valStr, ((char *) characteristic.value()) + 3, 2);
+  
+  snprintf(valStr, 2, "%s", ((char *) characteristic.value()) + 1); // eg. 0
+  demoMode = atoi(valStr); 
+  
+  snprintf(valStr, 2, "%s", ((char *) characteristic.value()) + 2); // eg. 0
+  canCapture = atoi(valStr) ? true : false; 
+  
+  snprintf(valStr, 3, "%s", ((char *) characteristic.value()) + 3); // eg. 50
   numSampleDataCollection = atoi(valStr);
-
-  strncpy(valStr, ((char *) characteristic.value()) + 5, 3);
+  
+  snprintf(valStr, 4, "%s", ((char *) characteristic.value()) + 5); // eg. 120
   cooldown = atoi(valStr);
-
-  strncpy(valStr, ((char *) characteristic.value()) + 8, 3);
+  
+  snprintf(valStr, 4, "%s", ((char *) characteristic.value()) + 8); // eg. 999
   testResponseTime = atoi(valStr);
-
-  strncpy(valStr, ((char *) characteristic.value()) + 11, 4);
+  
+  snprintf(valStr, 5, "%s", ((char *) characteristic.value()) + 11); // eg. 0.16
   threshold = atof(valStr);
 
-  digitalWrite(LEDG, HIGH);
-  digitalWrite(LEDB, LOW);
+  __set_LED(0, 0, 1);
   __delay(40);
-  digitalWrite(LEDG, LOW);
-  digitalWrite(LEDB, HIGH);
-
+  __set_LED(0, 1, 0);
 }
 
 const char* GESTURES[] = {"topl", "twistl", "side", "downl", "twistr", "topr", "downr","unknown"};
@@ -239,22 +219,6 @@ unsigned long responseT;
 
 
 static void onDemoMode (const bool trigger, float * aX, float * aY, float * aZ, float * gX, float * gY, float * gZ) {
-  if (!isSampling && trigger) {
-    if (demoMode == 0) {
-      __delay(testResponseTime);
-      snprintf(buf, 100, "%dm03", device_id);
-      board2webChar.writeValue(buf);
-      __delay(cooldown);
-
-    } else {
-      isSampling = true;
-      sampleRead = 0;
-      maxCorr = 0;
-      maxI = -1;
-      startT = millis();
-    }
-  }
-
   if (isSampling) {
     input->data.f[sampleRead * 6] = (*aX + 4.0) / 8.0;
     input->data.f[sampleRead * 6 + 1] = (*aY + 4.0) / 8.0;
@@ -290,12 +254,12 @@ static void onDemoMode (const bool trigger, float * aX, float * aY, float * aZ, 
 
       responseT = millis() - startT;
       if (maxCorr > 0.2 && maxI < 7) { // not unknown class, can send signal
-        snprintf(buf, 100, "%dm0%d", device_id, device_id ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]);
+        snprintf(buf, WRITE_LENGTH, "%dm0%d", DEVICE_ID, DEVICE_ID ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]);
         board2webChar.writeValue(buf);
       }
 
-      snprintf(buf, 100, "%s(%.3f), infer:%.3fms sampling:%.3fms response:%.3fms", 
-        device_id ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]],
+      snprintf(buf, BUF_LENGTH, "%s(%.3f), infer:%.lu ms sampling:%lu ms response:%lu ms", 
+        DEVICE_ID ? GESTURES[GESTURES_L_I[maxI]] : GESTURES[GESTURES_R_I[maxI]],
         maxCorr, inferenceT, samplingT, responseT
       );
       Serial.println(buf);
@@ -304,6 +268,20 @@ static void onDemoMode (const bool trigger, float * aX, float * aY, float * aZ, 
       // cooldown...
       __delay(cooldown);
     }
+  } else if (trigger) {
+    if (demoMode == 0) {
+      __delay(testResponseTime);
+      snprintf(buf, WRITE_LENGTH, "%dm03", DEVICE_ID);
+      board2webChar.writeValue(buf);
+      __delay(cooldown);
+
+    } else {
+      isSampling = true;
+      sampleRead = 0;
+      maxCorr = 0;
+      maxI = -1;
+      startT = millis();
+    }    
   }
 }
 
@@ -312,12 +290,6 @@ float s[MAX_POSSIBLE_NUM_SAMPLE * 6];
 
 
 static void onDataCollectMode (const bool trigger, float * aX, float * aY, float * aZ, float * gX, float * gY, float * gZ) {
-  if (canCapture && !isCollecting && trigger) {
-    isCollecting = true;
-    sampleRead = 0;
-    startT = millis();
-  }
-
   if (isCollecting) {
     s[sampleRead * 6] = (*aX + 4.0) / 8.0;
     s[sampleRead * 6 + 1] = (*aY + 4.0) / 8.0;
@@ -327,28 +299,36 @@ static void onDataCollectMode (const bool trigger, float * aX, float * aY, float
     s[sampleRead * 6 + 5] = (*gZ + 2000.0) / 4000.0;
 
     sampleRead++;
-    // Serial.println("numSampleDataCollection " + String(numSampleDataCollection));
     if (sampleRead == numSampleDataCollection) {
       isCollecting = false;
       samplingT = millis() - startT;
 
       startT = millis();
+
+      snprintf(buf, BUF_LENGTH, "%d dp collected in %lu ms", sampleRead, samplingT);
+      Serial.println(buf);
       // Serial.println(String(sampleRead) +" data point(s) collected in " + String(samplingT) + "ms.");
 
       for (int i=0; i<numSampleDataCollection;i++) {
         // Serial.println("send collected " + String(s[i][0], 3) + " to server");
-        snprintf(buf, 100, "%dm1_1%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", device_id, s[i*6], s[i*6+1], s[i*6+2], s[i*6+3], s[i*6+4], s[i*6+5]);
+        snprintf(buf, WRITE_LENGTH, "%dm1_1%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", DEVICE_ID, s[i*6], s[i*6+1], s[i*6+2], s[i*6+3], s[i*6+4], s[i*6+5]);
         board2webChar.writeValue(buf);
         __delay(50);
       }
 
-      snprintf(buf, 100, "%dm1_2", device_id);
+      snprintf(buf, WRITE_LENGTH, "%dm1_2", DEVICE_ID);
       board2webChar.writeValue(buf);
 
       // Serial.println("data collection completed");        
     }
-  } else {
-    snprintf(buf, 100, "%dm1_0%.3f,%.3f,%.3f,%.1f,%.1f,%.1f", device_id, *aX, *aY, *aZ, *gX, *gY, *gZ);
+  } else if (canCapture && trigger) {
+    isCollecting = true;
+    sampleRead = 0;
+    startT = millis();
+  }
+
+  if (!isCollecting) {
+    snprintf(buf, WRITE_LENGTH, "%dm1_0%.3f,%.3f,%.3f,%.1f,%.1f,%.1f", DEVICE_ID, *aX, *aY, *aZ, *gX, *gY, *gZ);
     board2webChar.writeValue(buf);
     __delay(25);
   }
