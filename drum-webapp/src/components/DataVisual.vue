@@ -11,7 +11,6 @@
       
       <line v-bind="middleLineStyle()"/>
       <g class="tick-x">
-      <!-- <g class="tick-x" v-for="(tx, i) in tickX" :key="i"> -->
         <line v-for="(tx, i) in parseInt(numSample)" :key="i" v-bind="tickXAttr(tx-1)" />
         <text v-for="(tx, i) in tickX" :key="i" v-bind="tickXTextAttr(tx-1)">{{ tx }}</text>
       </g>
@@ -84,7 +83,6 @@ export default {
       const line = d3.line().x(d => x(d.x)).y(d => y(d.y))
 
       const ds = [[], [], [], [], [], []]
-      // const ds = [[], [], [], [], [], [], [], [], []]
 
       props.sensorData.val.forEach((dAll, i) => {
         dAll.forEach((d, j) => {
@@ -92,7 +90,6 @@ export default {
         })
       })
 
-      // return ds.map((d, i) => ({ color: colorScheme[i], d: line(d)}))
       return ds.filter(d => line(d) && line(d).indexOf("NaN") === -1).map((d, i) => {
         return { color: colorScheme[i], d: line(d)}
       })

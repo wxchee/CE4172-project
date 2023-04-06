@@ -2,16 +2,13 @@ import { getConnectedDevices, updateDeviceParam } from "./device"
 import {ref, reactive, computed} from 'vue'
 const SAMPLE_RAMGE = [5, 50]
 const THRESHOLD_RANGE = [0.1, 0.5]
-let curSample = 0
-let canCapture = false
 
 const threshold = ref(0.16)
 let captureStarted = ref(false)
 const numSample = ref(15)
 const th = reactive({ 
   aX: 0, aY: 0, aZ: 0,
-  gX: 0, gY: 0, gZ: 0,
-  // mX:0, mY: 0, mZ: 0 
+  gX: 0, gY: 0, gZ: 0
 })
 const magnitude = computed(() => {
   return ((th.aX + th.aY + th.aZ + th.gX + th.gY + th.gZ) / 6).toFixed(3)
@@ -60,15 +57,14 @@ const onReceiveNewDataForDataCollect = async newVal => {
 
 const normaliseAcc = d => ((d + 4.0) / 8.0).toFixed(3)
 const normaliseGyro = d => ((d + 2000.0) / 4000.0).toFixed(3)
-// const normaliseMagneto = d => ((d + 400.0) / 800.0).toFixed(3)
+
 const normaliseData = rowStr => {
   const [aX, aY, aZ, gX, gY, gZ, 
     // mX, mY, mZ
   ] = rowStr.split(",").map(d => parseFloat(d))
   return [
     normaliseAcc(aX), normaliseAcc(aY), normaliseAcc(aZ),
-    normaliseGyro(gX), normaliseGyro(gY), normaliseGyro(gZ),
-    // normaliseMagneto(mX), normaliseMagneto(mY), normaliseMagneto(mZ)
+    normaliseGyro(gX), normaliseGyro(gY), normaliseGyro(gZ)
   ]
 }
 
@@ -76,15 +72,12 @@ const startCapture = () => {
   if (!getConnectedDevices().length) return
 
   captureStarted.value = !captureStarted.value
-  // updateDeviceParam(undefined, captureStarted.value)
   updateDeviceParam()
   if(captureStarted.value) selectedCapTime.value = -1
 }
 
 const pauseCapture = () => {
   captureStarted.value = false
-  canCapture = false
-  curSample = 0
 }
 
 const resetCapture = () => {
@@ -99,9 +92,6 @@ const resetCapture = () => {
   // capturedBuffer.value = []
   // filterCaptureTRef.value = {}
   // selectedCapTime.value = -1
-
-  canCapture = false
-  curSample = 0
 }
 
 const removeCapturedItem = (timestamp, e) => {

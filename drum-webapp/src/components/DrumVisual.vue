@@ -54,13 +54,8 @@
 import {drumType, onDrumHit, highlights} from '@/js/drum'
 
 export default {
-  // props: {
-  //   highlights: Object,
-  //   default: []
-  // },
-  setup (props) {
+  setup () {
     const hitClass = i => ({ hit: highlights[i]})
-    // const onDrumHit = drumCode => emit('hit', drumCode)
     return {hitClass, drumType, onDrumHit, highlights}
   }
 }

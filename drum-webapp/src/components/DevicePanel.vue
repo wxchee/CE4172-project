@@ -33,12 +33,6 @@ export default {
     const inView = ref(false)
     const connectInProgress = ref(false)
     const connectedDevices = computed(() => getConnectedDevices())
-    
-    // const checkIfClickWithinView = e => {
-    //   if (e.target.classList.value.indexOf('device-panel') === -1) {
-    //     inView.value = e.target.classList.value.indexOf('device-panel') !== -1
-    //   }
-    // }
 
     const clickConnectButton = () => {
       connectInProgress.value = true
@@ -47,13 +41,6 @@ export default {
         inView.value = false
       })
     }
-     
-    // const onToggleView = () => {
-    //   inView.value = !inView.value
-
-    //   if (inView.value) window.addEventListener('click', checkIfClickWithinView)
-    //   else window.removeEventListener('click', checkIfClickWithinView)
-    // }
     
     return {connectInProgress, clickConnectButton, disconnectBTDevice, connectedDevices, inView}
   }

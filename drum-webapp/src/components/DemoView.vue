@@ -46,7 +46,6 @@ export default {
     max-width: 600px;
     margin: 20px auto 80px;
     overflow: hidden;
-    // margin-top: 20px;
   }
   
   .option {
