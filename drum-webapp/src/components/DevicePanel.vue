@@ -29,14 +29,14 @@ import { computed, ref } from 'vue'
 
 export default {
   components: {GenericButton},
-  setup(props) {
+  setup() {
     const inView = ref(false)
     const connectInProgress = ref(false)
     const connectedDevices = computed(() => getConnectedDevices())
 
     const clickConnectButton = () => {
       connectInProgress.value = true
-      connectBTDevice(success => {
+      connectBTDevice(() => {
         connectInProgress.value = false
         inView.value = false
       })

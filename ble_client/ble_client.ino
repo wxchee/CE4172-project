@@ -6,7 +6,9 @@
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 
-#include "final/gesture_model_f_s15q.h"
+// #include "final_l/gesture_model_f_s15q.h"
+#include "final_r/gesture_model_f_s15q.h"
+#define DEVICE_ID 0 // 0: RIGHT, 1: Left
 
 #define NUM_SAMPLE_MODEL 15
 // mx_x 0.123,0.123,0.123, 0.123,0.123,0.123 => 39
@@ -14,8 +16,6 @@
 #define READ_LENGTH 16
 #define WRITE_LENGTH 48
 #define BUF_LENGTH 100
-
-#define DEVICE_ID 0 // 0: RIGHT 1: Left
 
 #define __set_LED(r, g, b) ({ \
   digitalWrite(LEDR, r ? LOW : HIGH); \
@@ -205,8 +205,8 @@ static void onReceiveMsg(BLEDevice central, BLECharacteristic characteristic) {
 
 const char* GESTURES[] = {"topl", "twistl", "side", "downl", "twistr", "topr", "downr","unknown"};
 
-int GESTURES_L_I[] = {0, 1, 2, 3, 4, 5, 6, 8};
-int GESTURES_R_I[] = {0, 1, 7, 3, 4, 5, 6, 8};
+int GESTURES_L_I[] = {0, 1, 2, 3};
+int GESTURES_R_I[] = {5, 4, 7, 6};
 
 int maxI = -1;
 float maxCorr = 0;
@@ -242,7 +242,7 @@ static void onDemoMode (const bool trigger, float * aX, float * aY, float * aZ, 
       }
       inferenceT = millis() - midT;
       
-      for (int i = 0; i < sizeof(GESTURES) / sizeof(GESTURES[0]); i++) {
+      for (int i = 0; i < sizeof(GESTURES_L_I) / sizeof(GESTURES_L_I[0]); i++) {
         // Serial.print(String(GESTURES[i]) + ": " + String(output->data.f[i], 2) + " ");
 
         if (maxCorr < output->data.f[i]) {
@@ -253,7 +253,7 @@ static void onDemoMode (const bool trigger, float * aX, float * aY, float * aZ, 
       // Serial.println();
 
       responseT = millis() - startT;
-      if (maxCorr > 0.2 && maxI < 7) { // not unknown class, can send signal
+      if (maxCorr > 0.2) { // met minimum correlation 0.2, can send signal
         snprintf(buf, WRITE_LENGTH, "%dm0%d", DEVICE_ID, DEVICE_ID ? GESTURES_L_I[maxI] : GESTURES_R_I[maxI]);
         board2webChar.writeValue(buf);
       }
