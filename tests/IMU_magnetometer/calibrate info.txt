@@ -1,9 +1,0 @@
-https://github.com/FemmeVerbeek/Arduino_LSM9DS1
-
-singapore magnetic field ~ 42.186 uF
-
-// Magnetometer code
-IMU.setMagnetFS(0);
-IMU.setMagnetODR(8);
-IMU.setMagnetOffset(27.539062, -22.213745, 16.709595);
-IMU.setMagnetSlope (1.336290, 1.343378, 1.236452);

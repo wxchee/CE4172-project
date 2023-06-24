@@ -22,7 +22,7 @@ import ToggleButton from './ToggleButton.vue'
 import {drumType, DRUM_TYPES} from '@/js/drum'
 
 const DEMO_MODES = ['Test response', 'Inference mode']
-const demoMode = ref(DEMO_MODES[0])
+const demoMode = ref(DEMO_MODES[1])
 
 export {demoMode, DEMO_MODES}
 

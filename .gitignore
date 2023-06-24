@@ -3,3 +3,5 @@ drum-samples/*
 drum-webapp/node_modules/*
 
 CheeWeiXian_U2021644K_VirtualDrumKit_report_slides_codes/*
+
+drum-webapp/dist/*
