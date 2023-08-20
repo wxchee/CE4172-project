@@ -1,7 +1,7 @@
 # Virtual Drum
 Arduino Nano 33 BLE + web app implementation that plays drum sounds based on recognized hand gesture.
 
-The gesture recognition model is situated directly on the Arduino board, which means that the interpretation of gesture data takes place onboard, and the inference result is then sent back to the web application, which triggers a specific drum sound.
+This project highlighted on deploying a machine learning model directly on a resource-constrained environment, particularly an Arduino Nano 33 BLE board. It demonstrated the possibility of combining machine learning technique with an embedded system by giving precedence to embedded system performance while concurrently optimizing the model to align with this specific use case.
 
 This project was developed as part of the coursework for NTU's CE4172 Internet of Things: Tiny Machine Learning.
 
@@ -9,7 +9,6 @@ This project was developed as part of the coursework for NTU's CE4172 Internet o
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=hx05in64bPQ" target="_blank">
  <img src="http://img.youtube.com/vi/hx05in64bPQ/mqdefault.jpg" alt="Watch the video" width="560" height="315" border="10" />
 </a>
-
 
 ## Overview
 There are 4 gesture available for each hand(left/right)
@@ -24,6 +23,20 @@ Gesture for right hand are basically mirroring the same gesture of left hands:
 
 <img src="readme/top-r.gif" width="130"><img src="readme/twist-r.gif" width="130"><img src="readme/side-r.gif" width="130"><img src="readme/down-r.gif" width="130">
 
+## Hardware & Software used
+A simple block diagram of the setup
+
+<img src="readme/block-diagram.jpg" width="400">
+
+### Hardware
+- 2x Arduino Nano 33 BLE/Arduino Nano 33 BLE Sense board
+- 2x 9v Lithium batteries
+- 2x battery holders
+- a computer to run the drum web app
+
+### Software
+- Arduino IDE
+- A [web application](https://wxchee.github.io/demo/tinyml/webapp/index.html) made with Vue.js
 
 ## Try it yourself
 
@@ -34,7 +47,7 @@ Sketch file + trained model header file:
 - [right hand](sketch/right/)
 
 
-Step 2: Visits the [web app](https://wxchee.github.io/demo/tinyml/webapp/index.html)
+Step 2: Visits the [web application](https://wxchee.github.io/demo/tinyml/webapp/index.html)
 
 
 Step 3: Power up the board, connect the board to the web app via the "Add peripheral" button on the top left corner of the screen (see below video)
@@ -75,42 +88,30 @@ Despite the good inference accuracy, an input size of 180 shows significant dela
 
 Beside input size, further tests are also conducted to reduce model complexity(neurons count per layer) while maintaining optimal inference performance.
 
-Upon tests, it is deemed that an input size of 90, a model featuring 32 neurons in the first layer, and 16 neurons in the second layer helps to reduce both data sampling and inference times. More importantly, such setup does not result in significant reduction in inference performance.
+Upon tests, it is deemed that an input size of 90, a model featuring 32 neurons in the first layer, and 16 neurons in the second layer helps to reduce both data sampling and inference times while showing no significant reduction in inference accuracy. This setup also ensures that the response time remains within 150ms, which satisfies the goal response time.
 
 Below is the final model training configuration:
 
 ![image](https://github.com/wxchee/CE4172-project/assets/33355985/d0938e04-01a5-4145-b0a0-1d90195a2205)
 
 
-Below depicts the final model performance which yields a good prediction accuracy on test data.
+Below depicts the final model performance:
 
+<img src="readme/loss.png" width="300"> <img src="readme/accuracy.png" width="300">
 
-Below depicts the final model performance which yields a good prediction accuracy on test data.
-<img src="readme/loss.png" width="300"> <img src="readme/accuracy.png" width="300"> <img src="readme/predict_onehand.png" width="230">
+The model yields a good prediction accuracy on test data.
+
+<img src="readme/predict_onehand.png" width="230">
 
 The model is then converted into a header file format that can be imported into the Arduino executable.
 
-## A simple block diagram of the setup
-
-<img src="readme/block-diagram.jpg" width="400">
 
 ## Web Application
+Web application dev directory: [drum-webapp](drum-webapp/)
  - an interface to play drum sound, establish bluetooth connection with Arduino board
  - receive gesture inference result from Arduino board, play drum sound based on the result
- - initiate a data sampling session, receive bulk response of collected gesture data from Arduino board
- - convert collected gesture data into csv format for download
-
-## Arduino board
-- Either Arduino Nano 33 BLE or Arduino Nano 33 BLE Sense board are applicable for this application
-- powered up via the USB port or the 9V pin
-- run on-board executable on power up, establish bluetooth connection with the web application
-- collect gesture data via onboard IMU sensor
-- perform inference directly on the board, transmit inference result back to the web application
+ - Data collection
+   - initiate a data sampling session, receive bulk response of collected gesture data from Arduino board
+   - convert collected gesture data into csv format for download
 
 
-## Run the web app on localhost
-Web application directory: [drum-webapp](drum-webapp/)
-
-Run the web app on your local machine
-1. run `npm install` to install dependencies required by the web app
-2. run `npm run serve` to serve the web app on localhost
